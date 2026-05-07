@@ -4,13 +4,14 @@ import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import ShipmentDetail from './components/ShipmentDetail';
 import UserManagement from './components/UserManagement';
+import ForceResetPassword from './components/ForceResetPassword';
 import { fetchShipments } from './data/store';
 import { Shipment } from './types';
 
 type View = { page: 'dashboard' } | { page: 'detail'; id: string } | { page: 'users' };
 
 function AppInner() {
-  const { session, loading } = useAuth();
+  const { session, profile, loading } = useAuth();
   const [view, setView] = useState<View>({ page: 'dashboard' });
   const [detailShipment, setDetailShipment] = useState<Shipment | null>(null);
 
@@ -23,6 +24,10 @@ function AppInner() {
   }
 
   if (!session) return <LoginPage />;
+
+  if (profile?.must_reset_password) {
+    return <ForceResetPassword onDone={() => window.location.reload()} />;
+  }
 
   async function handleView(id: string) {
     const shipments = await fetchShipments();

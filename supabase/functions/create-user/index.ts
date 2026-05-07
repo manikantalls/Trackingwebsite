@@ -73,12 +73,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Upsert profile
+    // Upsert profile — mark password reset required
     await adminClient.from("profiles").upsert({
       id: newUser.user.id,
       email,
       full_name: full_name ?? "",
       role: role ?? "user",
+      must_reset_password: true,
     }, { onConflict: "id" });
 
     return new Response(JSON.stringify({ id: newUser.user.id }), {

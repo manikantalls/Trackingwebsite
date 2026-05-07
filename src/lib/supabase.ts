@@ -11,4 +11,5 @@ export type Profile = {
   role: 'admin' | 'user';
   full_name: string;
   created_at: string;
+  must_reset_password: boolean;
 };
