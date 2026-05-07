@@ -33,9 +33,22 @@ function col(row: Record<string, unknown>, ...keys: string[]): unknown {
   );
   for (const key of keys) {
     const val = normalized[key.toLowerCase().trim()];
-    if (val !== undefined && val !== '') return val;
+    if (val !== undefined && val !== null && val !== '') return val;
   }
   return '';
+}
+
+// Find the header row index by looking for a row containing known column names
+function findHeaderRow(rawRows: unknown[][]): number {
+  const knownHeaders = ['invoice', 'supplier', 'lls reference', 'vessel', 'container', 'status', 'cw', 'booking'];
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const row = rawRows[i];
+    if (!Array.isArray(row)) continue;
+    const cellTexts = row.map((c) => String(c ?? '').toLowerCase().trim());
+    const matches = knownHeaders.filter((h) => cellTexts.some((c) => c === h));
+    if (matches.length >= 3) return i;
+  }
+  return 0;
 }
 
 export function parseExcelFile(file: File): Promise<Shipment[]> {
@@ -46,18 +59,33 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
         const data = new Uint8Array(e.target!.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array', cellDates: false });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+
+        // Read as raw arrays first to detect header row position
+        const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
+        const headerIdx = findHeaderRow(rawRows);
+
+        // Re-parse with the correct header row
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+          defval: '',
+          range: headerIdx,
+        });
 
         const shipments: Shipment[] = rows.map((row, i) => {
           const rawStatus = String(col(row, 'Status', 'status') ?? '');
           const { status, statusNote } = detectStatus(rawStatus);
 
+          const llsRef = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
+          const invoice = String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung'));
+
+          // Generate a stable ID so re-imports update existing rows
+          const stableId = String(col(row, 'ID', 'id') || `${llsRef}-${invoice}-${i}`.replace(/\s+/g, '-'));
+
           return {
-            id: String(col(row, 'ID', 'id') || `imp-${Date.now()}-${i}`),
+            id: stableId,
             cw: String(col(row, 'CW', 'cw')),
-            llsReference: String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference')),
+            llsReference: llsRef,
             supplier: String(col(row, 'Supplier', 'supplier')),
-            invoice: String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung')),
+            invoice,
             deliveryNote: String(col(row, 'Delivery Note', 'DeliveryNote', 'deliveryNote', 'delivery_note', 'Lieferschein')),
             po: String(col(row, 'PO', 'po', 'Purchase Order', 'purchase_order')),
             partNumber: String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer')),

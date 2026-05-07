@@ -69,6 +69,15 @@ export async function upsertShipment(s: Shipment): Promise<void> {
   if (error) throw error;
 }
 
+export async function replaceAllShipments(shipments: Shipment[]): Promise<void> {
+  // Delete all existing shipments then insert fresh to avoid stale rows
+  const { error: delError } = await supabase.from('shipments').delete().neq('id', '');
+  if (delError) throw delError;
+  if (shipments.length === 0) return;
+  const { error } = await supabase.from('shipments').insert(shipments.map(toRow));
+  if (error) throw error;
+}
+
 export async function upsertShipments(shipments: Shipment[]): Promise<void> {
   const { error } = await supabase
     .from('shipments')
