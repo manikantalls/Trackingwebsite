@@ -158,7 +158,7 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
           {/* Shipping Info */}
           <div className="bg-white border border-gray-200 rounded-2xl px-6 py-6 shadow-sm space-y-5">
             <h3 className="text-sm font-semibold text-gray-800">Shipping Information</h3>
-            <Field icon={<Calendar className="w-3.5 h-3.5" />} label="Pick Up" value={s.pickUp} />
+            <Field icon={<Calendar className="w-3.5 h-3.5" />} label="Pick Up" value={fmtDate(s.pickUp)} />
             <Field icon={<Hash className="w-3.5 h-3.5" />} label="Booking Reference" value={s.booking} />
             <Field icon={<Ship className="w-3.5 h-3.5" />} label="Vessel" value={s.vessel} />
             <Field icon={<Container className="w-3.5 h-3.5" />} label="Container" value={
