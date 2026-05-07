@@ -1,7 +1,7 @@
 import {
   ArrowLeft, Package, Ship, Container, Calendar, MapPin, Hash,
   FileText, ShoppingCart, Weight, Clock, Anchor, CheckCircle2,
-  Phone, Mail, MessageCircle, TrendingUp,
+  TrendingUp,
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
 import StatusBadge from './StatusBadge';
@@ -180,25 +180,6 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
                 <span className="text-sm font-bold text-gray-700 w-10 text-right">{progressPct}%</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Need Help */}
-        <div className="bg-white border border-gray-200 rounded-2xl px-6 py-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-1.5">
-            <MessageCircle className="w-5 h-5 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-800">Need Help?</h3>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">
-            Our customer support team is here to assist you with any questions about your shipment.
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            {[{ label: 'Call Us', Icon: Phone }, { label: 'Email', Icon: Mail }, { label: 'Live Chat', Icon: MessageCircle }].map(({ label, Icon }) => (
-              <button key={label} className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all">
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
-            ))}
           </div>
         </div>
 
