@@ -98,11 +98,20 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-          <p className="text-xs font-semibold text-blue-900 mb-2">Admin Credentials:</p>
-          <div className="space-y-1 text-xs text-blue-800">
-            <p><span className="font-medium">Email:</span> admin@knipping.com</p>
-            <p><span className="font-medium">Password:</span> Admin123!</p>
+        <div className="mt-6 space-y-3">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-xs font-semibold text-blue-900 mb-2">Admin</p>
+            <div className="space-y-1 text-xs text-blue-800">
+              <p><span className="font-medium">Email:</span> admin@knipping.com</p>
+              <p><span className="font-medium">Password:</span> Admin123!</p>
+            </div>
+          </div>
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <p className="text-xs font-semibold text-emerald-900 mb-2">User</p>
+            <div className="space-y-1 text-xs text-emerald-800">
+              <p><span className="font-medium">Email:</span> user@knipping.com</p>
+              <p><span className="font-medium">Password:</span> User123!</p>
+            </div>
           </div>
         </div>
       </div>
