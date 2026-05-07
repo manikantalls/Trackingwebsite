@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import {
   Users, UserPlus, Trash2, Shield, User, X, AlertCircle,
-  CheckCircle2, ArrowLeft, Eye, EyeOff, RefreshCw, Upload,
+  CheckCircle2, ArrowLeft, Eye, EyeOff, RefreshCw, Upload, KeyRound,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase, Profile } from '../lib/supabase';
@@ -35,6 +35,13 @@ export default function UserManagement({ onBack }: Props) {
   const [showPw, setShowPw] = useState(false);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Reset password
+  const [resetTarget, setResetTarget] = useState<Profile | null>(null);
+  const [resetPw, setResetPw] = useState('');
+  const [showResetPw, setShowResetPw] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   // Import
   const fileRef = useRef<HTMLInputElement>(null);
@@ -127,6 +134,37 @@ export default function UserManagement({ onBack }: Props) {
     if (!error) {
       showToast(`Role updated to ${nextRole}`);
       await load();
+    }
+  }
+
+  async function handleResetPassword(e: FormEvent) {
+    e.preventDefault();
+    if (!resetTarget) return;
+    if (resetPw.length < 6) { setResetError('Password must be at least 6 characters.'); return; }
+    setResetting(true);
+    setResetError('');
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ userId: resetTarget.id, password: resetPw }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to reset password');
+      setResetTarget(null);
+      setResetPw('');
+      showToast(`Password reset for ${resetTarget.email}`);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Failed to reset password');
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -389,6 +427,57 @@ export default function UserManagement({ onBack }: Props) {
           </div>
         )}
 
+        {/* Reset Password modal */}
+        {resetTarget && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-800">Reset Password</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{resetTarget.email}</p>
+                </div>
+                <button onClick={() => { setResetTarget(null); setResetPw(''); setResetError(''); }} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleResetPassword} className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">New Password</label>
+                  <div className="relative">
+                    <input
+                      type={showResetPw ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={resetPw}
+                      onChange={(e) => setResetPw(e.target.value)}
+                      placeholder="Min. 6 characters"
+                      className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button type="button" onClick={() => setShowResetPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showResetPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">The user will be prompted to set their own password on next login.</p>
+                </div>
+                {resetError && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    {resetError}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-1">
+                  <button type="button" onClick={() => { setResetTarget(null); setResetPw(''); setResetError(''); }} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={resetting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60">
+                    {resetting ? 'Resetting…' : 'Reset Password'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Users Table */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -443,6 +532,13 @@ export default function UserManagement({ onBack }: Props) {
                           className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
                         >
                           Make {p.role === 'admin' ? 'User' : 'Admin'}
+                        </button>
+                        <button
+                          onClick={() => { setResetTarget(p); setResetPw(''); setResetError(''); setShowResetPw(false); }}
+                          title="Reset password"
+                          className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <KeyRound className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(p)}

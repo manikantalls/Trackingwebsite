@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
@@ -60,7 +60,6 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Delete profile first, then auth user
       await adminClient.from("profiles").delete().eq("id", userId);
       const { error: deleteErr } = await adminClient.auth.admin.deleteUser(userId);
       if (deleteErr) {
@@ -69,6 +68,33 @@ Deno.serve(async (req: Request) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── PATCH — reset a user's password ──────────────────────────
+    if (req.method === "PATCH") {
+      const { userId, password } = await req.json();
+      if (!userId || !password) {
+        return new Response(JSON.stringify({ error: "userId and password are required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: resetErr } = await adminClient.auth.admin.updateUserById(userId, { password });
+      if (resetErr) {
+        return new Response(JSON.stringify({ error: resetErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Mark must_reset_password so user is prompted to set their own password on next login
+      await adminClient.from("profiles").update({ must_reset_password: true }).eq("id", userId);
 
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
@@ -100,7 +126,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Upsert profile — mark password reset required
     await adminClient.from("profiles").upsert({
       id: newUser.user.id,
       email,
