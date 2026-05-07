@@ -26,6 +26,18 @@ function parseDate(val: unknown): string {
   return isNaN(d.getTime()) ? '' : d.toISOString();
 }
 
+// Case-insensitive, trimmed key lookup supporting multiple aliases
+function col(row: Record<string, unknown>, ...keys: string[]): unknown {
+  const normalized = Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [k.toLowerCase().trim(), v])
+  );
+  for (const key of keys) {
+    const val = normalized[key.toLowerCase().trim()];
+    if (val !== undefined && val !== '') return val;
+  }
+  return '';
+}
+
 export function parseExcelFile(file: File): Promise<Shipment[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -37,28 +49,28 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
 
         const shipments: Shipment[] = rows.map((row, i) => {
-          const rawStatus = String(row['Status'] ?? row['status'] ?? '');
+          const rawStatus = String(col(row, 'Status', 'status') ?? '');
           const { status, statusNote } = detectStatus(rawStatus);
 
           return {
-            id: String(row['ID'] ?? row['id'] ?? `imp-${Date.now()}-${i}`),
-            cw: String(row['CW'] ?? row['cw'] ?? ''),
-            llsReference: String(row['LLS Reference'] ?? row['llsReference'] ?? ''),
-            supplier: String(row['Supplier'] ?? row['supplier'] ?? ''),
-            invoice: String(row['Invoice'] ?? row['invoice'] ?? ''),
-            deliveryNote: String(row['Delivery Note'] ?? row['deliveryNote'] ?? ''),
-            po: String(row['PO'] ?? row['po'] ?? ''),
-            partNumber: String(row['Part Number'] ?? row['partNumber'] ?? ''),
-            quantity: String(row['Quantity'] ?? row['quantity'] ?? ''),
-            package: String(row['Package'] ?? row['package'] ?? ''),
-            kilo: Number(row['Kilo'] ?? row['kilo'] ?? 0),
-            pickUp: String(row['Pick up'] ?? row['pickUp'] ?? row['Pickup'] ?? ''),
-            booking: String(row['Booking'] ?? row['booking'] ?? ''),
-            vessel: String(row['Vessel'] ?? row['vessel'] ?? ''),
-            container: String(row['Container'] ?? row['container'] ?? ''),
-            ets: parseDate(row['ETS'] ?? row['ets']),
-            eta: parseDate(row['ETA'] ?? row['eta']),
-            etaKnipping: String(row['ETA Knipping'] ?? row['etaKnipping'] ?? ''),
+            id: String(col(row, 'ID', 'id') || `imp-${Date.now()}-${i}`),
+            cw: String(col(row, 'CW', 'cw')),
+            llsReference: String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference')),
+            supplier: String(col(row, 'Supplier', 'supplier')),
+            invoice: String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung')),
+            deliveryNote: String(col(row, 'Delivery Note', 'DeliveryNote', 'deliveryNote', 'delivery_note', 'Lieferschein')),
+            po: String(col(row, 'PO', 'po', 'Purchase Order', 'purchase_order')),
+            partNumber: String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer')),
+            quantity: String(col(row, 'Quantity', 'quantity', 'Menge')),
+            package: String(col(row, 'Package', 'package', 'Paket')),
+            kilo: Number(col(row, 'Kilo', 'kilo', 'Weight', 'weight', 'Gewicht') || 0),
+            pickUp: String(col(row, 'Pick up', 'Pick Up', 'Pickup', 'pickup', 'pickUp')),
+            booking: String(col(row, 'Booking', 'booking', 'Buchung')),
+            vessel: String(col(row, 'Vessel', 'vessel', 'Schiff')),
+            container: String(col(row, 'Container', 'container')),
+            ets: parseDate(col(row, 'ETS', 'ets')),
+            eta: parseDate(col(row, 'ETA', 'eta')),
+            etaKnipping: String(col(row, 'ETA Knipping', 'etaKnipping', 'eta_knipping')),
             status,
             statusNote,
             lastUpdated: new Date().toISOString(),
