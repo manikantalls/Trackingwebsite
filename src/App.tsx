@@ -3,16 +3,22 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import ShipmentDetail from './components/ShipmentDetail';
+import ContainerDetail from './components/ContainerDetail';
 import UserManagement from './components/UserManagement';
 import ForceResetPassword from './components/ForceResetPassword';
 import { fetchShipments } from './data/store';
 import { Shipment } from './types';
 
-type View = { page: 'dashboard' } | { page: 'detail'; id: string } | { page: 'users' };
+type View =
+  | { page: 'dashboard' }
+  | { page: 'detail'; id: string }
+  | { page: 'container'; container: string }
+  | { page: 'users' };
 
 function AppInner() {
   const { session, profile, loading } = useAuth();
   const [view, setView] = useState<View>({ page: 'dashboard' });
+  const [allShipments, setAllShipments] = useState<Shipment[]>([]);
   const [detailShipment, setDetailShipment] = useState<Shipment | null>(null);
 
   if (loading) {
@@ -31,11 +37,18 @@ function AppInner() {
 
   async function handleView(id: string) {
     const shipments = await fetchShipments();
+    setAllShipments(shipments);
     const found = shipments.find((s) => s.id === id);
     if (found) {
       setDetailShipment(found);
       setView({ page: 'detail', id });
     }
+  }
+
+  async function handleViewContainer(container: string) {
+    const shipments = await fetchShipments();
+    setAllShipments(shipments);
+    setView({ page: 'container', container });
   }
 
   if (view.page === 'detail' && detailShipment) {
@@ -47,6 +60,18 @@ function AppInner() {
     );
   }
 
+  if (view.page === 'container') {
+    const containerShipments = allShipments.filter((s) => (s.container || '(no container)') === view.container);
+    return (
+      <ContainerDetail
+        container={view.container}
+        shipments={containerShipments}
+        onBack={() => setView({ page: 'dashboard' })}
+        onViewShipment={(id) => handleView(id)}
+      />
+    );
+  }
+
   if (view.page === 'users') {
     return <UserManagement onBack={() => setView({ page: 'dashboard' })} />;
   }
@@ -54,6 +79,7 @@ function AppInner() {
   return (
     <Dashboard
       onView={handleView}
+      onViewContainer={handleViewContainer}
       onUserManagement={() => setView({ page: 'users' })}
     />
   );

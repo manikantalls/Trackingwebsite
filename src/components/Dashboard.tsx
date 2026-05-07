@@ -12,6 +12,7 @@ import ShipmentModal from './ShipmentModal';
 
 interface Props {
   onView: (id: string) => void;
+  onViewContainer: (container: string) => void;
   onUserManagement: () => void;
 }
 
@@ -26,7 +27,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'DELIVERED', label: 'Delivered' },
 ];
 
-export default function Dashboard({ onView, onUserManagement }: Props) {
+export default function Dashboard({ onView, onViewContainer, onUserManagement }: Props) {
   const { profile, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
@@ -376,173 +377,181 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
           </span>
         </div>
 
-        {/* Table */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs whitespace-nowrap">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  {[
-                    'CW','LLS Reference','Supplier','Invoice','Delivery Note',
-                    'PO','Part Number','Quantity','Package','Kilo',
-                    'Pick up','Booking','Vessel','Container',
-                    'ETS','ETA','ETA Knipping','Status',
-                    ...(isAdmin ? [''] : []),
-                  ].map((h, i) => (
-                    <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loadingData ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 19 : 18} className="px-4 py-12 text-center text-gray-400">
-                      Loading shipments…
-                    </td>
+        {/* Container card grid */}
+        {groupByContainer ? (
+          loadingData ? (
+            <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Loading shipments…</div>
+          ) : grouped.length === 0 ? (
+            <div className="flex items-center justify-center py-20 text-gray-400 text-sm">No shipments match your filters.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {grouped.map(([containerKey, rows]) => {
+                const totalKg = rows.reduce((sum, r) => sum + (r.kilo || 0), 0);
+                const totalPieces = rows.reduce((sum, r) => {
+                  const n = parseInt(r.quantity);
+                  return sum + (isNaN(n) ? 0 : n);
+                }, 0);
+                const vessels = Array.from(new Set(rows.map((r) => r.vessel).filter(Boolean)));
+                const statuses = Array.from(new Set(rows.map((r) => r.status)));
+                const etaDates = rows.map((r) => r.eta).filter(Boolean).sort();
+                const earliestEta = etaDates[0];
+                return (
+                  <button
+                    key={containerKey}
+                    onClick={() => onViewContainer(containerKey)}
+                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {/* Container number */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                          <Layers className="w-4.5 h-4.5 text-blue-600" style={{ width: 18, height: 18 }} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Container</p>
+                          <p className="font-mono font-bold text-gray-900 text-sm leading-tight">{containerKey}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors mt-1 shrink-0" />
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-900 leading-none">{rows.length}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Shipments</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-900 leading-none">{totalKg.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">kg</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-900 leading-none">{totalPieces > 0 ? totalPieces.toLocaleString() : '—'}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Pieces</p>
+                      </div>
+                    </div>
+
+                    {/* Vessel */}
+                    {vessels.length > 0 && (
+                      <p className="text-xs text-gray-500 truncate mb-2">
+                        <span className="font-medium text-gray-700">Vessel:</span> {vessels.join(', ')}
+                      </p>
+                    )}
+
+                    {/* ETA */}
+                    {earliestEta && (
+                      <p className="text-xs text-gray-500 mb-3">
+                        <span className="font-medium text-gray-700">ETA:</span> {fmtDate(earliestEta)}
+                      </p>
+                    )}
+
+                    {/* Status chips */}
+                    <div className="flex flex-wrap gap-1">
+                      {statuses.map((st) => (
+                        <StatusBadge key={st} status={st} />
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          /* Flat table */
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    {[
+                      'CW','LLS Reference','Supplier','Invoice','Delivery Note',
+                      'PO','Part Number','Quantity','Package','Kilo',
+                      'Pick up','Booking','Vessel','Container',
+                      'ETS','ETA','ETA Knipping','Status',
+                      ...(isAdmin ? [''] : []),
+                    ].map((h, i) => (
+                      <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 19 : 18} className="px-4 py-12 text-center text-gray-400">
-                      No shipments match your filters.
-                    </td>
-                  </tr>
-                ) : groupByContainer ? (
-                  grouped.map(([containerKey, rows]) => {
-                    const collapsed = collapsedGroups.has(containerKey);
-                    const totalKg = rows.reduce((sum, r) => sum + (r.kilo || 0), 0);
-                    const vessels = Array.from(new Set(rows.map((r) => r.vessel).filter(Boolean))).join(', ');
-                    return (
-                      <>
-                        <tr
-                          key={`group-${containerKey}`}
-                          onClick={() => toggleGroup(containerKey)}
-                          className="bg-gray-50 hover:bg-blue-50/60 cursor-pointer transition-colors border-y border-gray-200"
-                        >
-                          <td colSpan={isAdmin ? 19 : 18} className="px-3 py-2.5">
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-400">
-                                {collapsed
-                                  ? <ChevronRight className="w-4 h-4" />
-                                  : <ChevronDown className="w-4 h-4" />}
-                              </span>
-                              <span className="font-semibold text-gray-800 text-xs tracking-wide">{containerKey}</span>
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{rows.length} shipment{rows.length !== 1 ? 's' : ''}</span>
-                              {vessels && <span className="text-[10px] text-gray-400">{vessels}</span>}
-                              <span className="text-[10px] text-gray-400 ml-auto">{totalKg.toLocaleString()} kg total</span>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {loadingData ? (
+                    <tr>
+                      <td colSpan={isAdmin ? 19 : 18} className="px-4 py-12 text-center text-gray-400">
+                        Loading shipments…
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={isAdmin ? 19 : 18} className="px-4 py-12 text-center text-gray-400">
+                        No shipments match your filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((s) => (
+                      <tr
+                        key={s.id}
+                        onClick={() => onView(s.id)}
+                        className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-3 py-2 border-r border-gray-50">
+                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-white text-xs font-bold ${cwColors[s.cw] ?? 'bg-gray-500'}`}>
+                            {s.cw}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.llsReference}</td>
+                        <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.supplier}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.invoice}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.deliveryNote}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.po || '—'}</td>
+                        <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50 max-w-[180px] truncate">{s.partNumber}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.quantity}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.package}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50 text-right">{s.kilo}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.pickUp)}</td>
+                        <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.booking}</td>
+                        <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.vessel}</td>
+                        <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.container}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
+                        <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
+                        <td className="px-3 py-2 border-r border-gray-50">
+                          <StatusBadge status={s.status} note={s.statusNote} />
+                        </td>
+                        {isAdmin && (
+                          <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => setEditTarget(s)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(s.id)}
+                                disabled={deletingId === s.id}
+                                className="p-1.5 text-gray-400 hover:text-rose-600 transition-colors disabled:opacity-40"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </td>
-                        </tr>
-                        {!collapsed && rows.map((s) => (
-                          <tr
-                            key={s.id}
-                            onClick={() => onView(s.id)}
-                            className="hover:bg-blue-50/40 transition-colors cursor-pointer group bg-white"
-                          >
-                            <td className="px-3 py-2 border-r border-gray-50 pl-10">
-                              <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-white text-xs font-bold ${cwColors[s.cw] ?? 'bg-gray-500'}`}>
-                                {s.cw}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.llsReference}</td>
-                            <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.supplier}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.invoice}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.deliveryNote}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.po || '—'}</td>
-                            <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50 max-w-[180px] truncate">{s.partNumber}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.quantity}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.package}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50 text-right">{s.kilo}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.pickUp)}</td>
-                            <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.booking}</td>
-                            <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.vessel}</td>
-                            <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.container}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
-                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
-                            <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
-                            <td className="px-3 py-2 border-r border-gray-50">
-                              <StatusBadge status={s.status} note={s.statusNote} />
-                            </td>
-                            {isAdmin && (
-                              <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => setEditTarget(s)} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Edit">
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} className="p-1.5 text-gray-400 hover:text-rose-600 transition-colors disabled:opacity-40" title="Delete">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </>
-                    );
-                  })
-                ) : (
-                  filtered.map((s) => (
-                    <tr
-                      key={s.id}
-                      onClick={() => onView(s.id)}
-                      className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-3 py-2 border-r border-gray-50">
-                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-white text-xs font-bold ${cwColors[s.cw] ?? 'bg-gray-500'}`}>
-                          {s.cw}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.llsReference}</td>
-                      <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.supplier}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.invoice}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.deliveryNote}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.po || '—'}</td>
-                      <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50 max-w-[180px] truncate">{s.partNumber}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.quantity}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.package}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50 text-right">{s.kilo}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.pickUp)}</td>
-                      <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.booking}</td>
-                      <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.vessel}</td>
-                      <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.container}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
-                      <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
-                      <td className="px-3 py-2 border-r border-gray-50">
-                        <StatusBadge status={s.status} note={s.statusNote} />
-                      </td>
-                      {isAdmin && (
-                        <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => setEditTarget(s)}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(s.id)}
-                              disabled={deletingId === s.id}
-                              className="p-1.5 text-gray-400 hover:text-rose-600 transition-colors disabled:opacity-40"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/40 text-xs text-gray-400">
+              Showing {filtered.length} of {shipments.length} shipment{shipments.length !== 1 ? 's' : ''}
+            </div>
           </div>
-          <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/40 text-xs text-gray-400">
-            Showing {filtered.length} of {shipments.length} shipment{shipments.length !== 1 ? 's' : ''}
-          </div>
-        </div>
+        )}
       </main>
 
       {/* Add/Edit modal */}
