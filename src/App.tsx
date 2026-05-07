@@ -26,7 +26,7 @@ function AppInner() {
   if (!session) return <LoginPage />;
 
   if (profile?.must_reset_password) {
-    return <ForceResetPassword onDone={() => window.location.reload()} />;
+    return <ForceResetPassword />;
   }
 
   async function handleView(id: string) {

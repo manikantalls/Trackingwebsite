@@ -1,12 +1,10 @@
 import { useState, FormEvent } from 'react';
 import { KeyRound, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
-interface Props {
-  onDone: () => void;
-}
-
-export default function ForceResetPassword({ onDone }: Props) {
+export default function ForceResetPassword() {
+  const { refreshProfile } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -35,7 +33,7 @@ export default function ForceResetPassword({ onDone }: Props) {
       return;
     }
 
-    // Clear the reset flag on the profile
+    // Clear the reset flag, then refresh profile in context so the dialog unmounts
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
@@ -44,8 +42,8 @@ export default function ForceResetPassword({ onDone }: Props) {
         .eq('id', user.id);
     }
 
+    await refreshProfile();
     setSubmitting(false);
-    onDone();
   }
 
   return (
