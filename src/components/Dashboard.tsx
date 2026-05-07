@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, Filter, Upload, Download, Package, ChevronDown,
-  Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw,
+  Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw, X,
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
 import { fetchShipments, upsertShipment, replaceAllShipments, deleteShipment } from '../data/store';
@@ -43,11 +43,14 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
   const [importError, setImportError] = useState('');
   const [editTarget, setEditTarget] = useState<Shipment | null | 'new'>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
   const cwRef = useRef<HTMLDivElement>(null);
   const vesselRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoadingData(true);
@@ -66,6 +69,7 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) setStatusOpen(false);
       if (cwRef.current && !cwRef.current.contains(e.target as Node)) setCwOpen(false);
       if (vesselRef.current && !vesselRef.current.contains(e.target as Node)) setVesselOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchFocused(false);
     }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -73,6 +77,33 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
 
   const allCWs = Array.from(new Set(shipments.map((s) => s.cw))).sort();
   const allVessels = Array.from(new Set(shipments.map((s) => s.vessel))).sort();
+
+  const suggestions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || q.length < 1) return [];
+    const seen = new Set<string>();
+    const results: { label: string; value: string }[] = [];
+    const add = (label: string, value: string) => {
+      const key = `${label}:${value}`;
+      if (value && value.toLowerCase().includes(q) && !seen.has(key)) {
+        seen.add(key);
+        results.push({ label, value });
+      }
+    };
+    for (const s of shipments) {
+      add('LLS Ref', s.llsReference);
+      add('Invoice', s.invoice);
+      add('Delivery Note', s.deliveryNote);
+      add('PO', s.po);
+      add('Booking', s.booking);
+      add('Container', s.container);
+      add('Supplier', s.supplier);
+      add('Part Number', s.partNumber);
+      add('Vessel', s.vessel);
+      add('CW', s.cw);
+    }
+    return results.slice(0, 8);
+  }, [query, shipments]);
 
   const filtered = shipments.filter((s) => {
     const q = query.toLowerCase();
@@ -224,15 +255,49 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div ref={searchRef} className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
             <input
               type="text"
               placeholder="Search LLS ref, invoice, delivery note, PO, booking, container…"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 w-68"
+              onChange={(e) => { setQuery(e.target.value); setSuggestionIndex(-1); }}
+              onFocus={() => setSearchFocused(true)}
+              onKeyDown={(e) => {
+                if (!suggestions.length) return;
+                if (e.key === 'ArrowDown') { e.preventDefault(); setSuggestionIndex((i) => Math.min(i + 1, suggestions.length - 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setSuggestionIndex((i) => Math.max(i - 1, -1)); }
+                else if (e.key === 'Enter' && suggestionIndex >= 0) { e.preventDefault(); setQuery(suggestions[suggestionIndex].value); setSearchFocused(false); setSuggestionIndex(-1); }
+                else if (e.key === 'Escape') { setSearchFocused(false); setSuggestionIndex(-1); }
+              }}
+              className="pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 w-80"
             />
+            {query && (
+              <button
+                onClick={() => { setQuery(''); setSuggestionIndex(-1); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {searchFocused && suggestions.length > 0 && (
+              <div className="absolute left-0 top-full mt-1 w-full min-w-[320px] bg-white border border-gray-200 rounded-xl shadow-xl z-40 py-1.5 overflow-hidden">
+                <p className="px-3 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Suggestions</p>
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setQuery(s.value); setSearchFocused(false); setSuggestionIndex(-1); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${i === suggestionIndex ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500 shrink-0 min-w-[70px] justify-center">
+                      {s.label}
+                    </span>
+                    <span className="text-gray-800 truncate">{s.value}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <DropdownFilter
