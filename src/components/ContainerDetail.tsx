@@ -39,7 +39,7 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
         <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
           <Package className="w-4 h-4 text-white" />
         </div>
-        <span className="text-sm font-semibold text-gray-700">Knipping LLS Dashboard</span>
+        <span className="text-base font-semibold text-gray-700">Knipping LLS Dashboard</span>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
