@@ -82,6 +82,8 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
       s.llsReference.toLowerCase().includes(q) ||
       s.supplier.toLowerCase().includes(q) ||
       s.invoice.toLowerCase().includes(q) ||
+      s.deliveryNote.toLowerCase().includes(q) ||
+      s.po.toLowerCase().includes(q) ||
       s.partNumber.toLowerCase().includes(q) ||
       s.vessel.toLowerCase().includes(q) ||
       s.container.toLowerCase().includes(q) ||
@@ -226,7 +228,7 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search supplier, part number, vessel…"
+              placeholder="Search LLS ref, invoice, delivery note, PO, booking, container…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 w-68"
