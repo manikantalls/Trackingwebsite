@@ -197,7 +197,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
             <Package className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">Knipping- LLS Dashboard</h1>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">Knipping- LLS Mexico Consol Dashboard</h1>
             <p className="text-xs text-gray-400">Monitor all your shipments</p>
           </div>
         </div>
