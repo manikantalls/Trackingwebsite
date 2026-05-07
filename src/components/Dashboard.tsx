@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-  Search, Filter, Upload, Download, Package, ChevronDown,
-  Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw, X,
+  Search, Filter, Upload, Download, Package, ChevronDown, ChevronRight,
+  Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw, X, Layers,
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
 import { fetchShipments, upsertShipment, replaceAllShipments, deleteShipment } from '../data/store';
@@ -45,6 +45,8 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const [groupByContainer, setGroupByContainer] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const fileRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,24 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
     const matchVessel = vesselFilter === 'ALL' || s.vessel === vesselFilter;
     return matchQ && matchStatus && matchCW && matchVessel;
   });
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Shipment[]>();
+    for (const s of filtered) {
+      const key = s.container || '(no container)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     if (!isAdmin) return;
@@ -342,6 +362,15 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
             <RefreshCw className={`w-4 h-4 ${loadingData ? 'animate-spin' : ''}`} />
           </button>
 
+          <button
+            onClick={() => { setGroupByContainer((v) => !v); setCollapsedGroups(new Set()); }}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors font-medium ${groupByContainer ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+            title="Group by container"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            Group by Container
+          </button>
+
           <span className="ml-auto text-xs text-gray-400">
             {filtered.length} of {shipments.length} rows
           </span>
@@ -379,6 +408,79 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
                       No shipments match your filters.
                     </td>
                   </tr>
+                ) : groupByContainer ? (
+                  grouped.map(([containerKey, rows]) => {
+                    const collapsed = collapsedGroups.has(containerKey);
+                    const totalKg = rows.reduce((sum, r) => sum + (r.kilo || 0), 0);
+                    const vessels = Array.from(new Set(rows.map((r) => r.vessel).filter(Boolean))).join(', ');
+                    return (
+                      <>
+                        <tr
+                          key={`group-${containerKey}`}
+                          onClick={() => toggleGroup(containerKey)}
+                          className="bg-gray-50 hover:bg-blue-50/60 cursor-pointer transition-colors border-y border-gray-200"
+                        >
+                          <td colSpan={isAdmin ? 19 : 18} className="px-3 py-2.5">
+                            <div className="flex items-center gap-3">
+                              <span className="text-gray-400">
+                                {collapsed
+                                  ? <ChevronRight className="w-4 h-4" />
+                                  : <ChevronDown className="w-4 h-4" />}
+                              </span>
+                              <span className="font-semibold text-gray-800 text-xs tracking-wide">{containerKey}</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{rows.length} shipment{rows.length !== 1 ? 's' : ''}</span>
+                              {vessels && <span className="text-[10px] text-gray-400">{vessels}</span>}
+                              <span className="text-[10px] text-gray-400 ml-auto">{totalKg.toLocaleString()} kg total</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {!collapsed && rows.map((s) => (
+                          <tr
+                            key={s.id}
+                            onClick={() => onView(s.id)}
+                            className="hover:bg-blue-50/40 transition-colors cursor-pointer group bg-white"
+                          >
+                            <td className="px-3 py-2 border-r border-gray-50 pl-10">
+                              <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-white text-xs font-bold ${cwColors[s.cw] ?? 'bg-gray-500'}`}>
+                                {s.cw}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.llsReference}</td>
+                            <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.supplier}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.invoice}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.deliveryNote}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.po || '—'}</td>
+                            <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50 max-w-[180px] truncate">{s.partNumber}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.quantity}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.package}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50 text-right">{s.kilo}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.pickUp)}</td>
+                            <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.booking}</td>
+                            <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.vessel}</td>
+                            <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.container}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
+                            <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
+                            <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
+                            <td className="px-3 py-2 border-r border-gray-50">
+                              <StatusBadge status={s.status} note={s.statusNote} />
+                            </td>
+                            {isAdmin && (
+                              <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => setEditTarget(s)} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Edit">
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} className="p-1.5 text-gray-400 hover:text-rose-600 transition-colors disabled:opacity-40" title="Delete">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </>
+                    );
+                  })
                 ) : (
                   filtered.map((s) => (
                     <tr
