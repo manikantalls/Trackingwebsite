@@ -101,5 +101,5 @@ export function exportToExcel(shipments: Shipment[]): void {
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Shipments');
-  XLSX.writeFile(wb, 'EFTEC_Shipments.xlsx');
+  XLSX.writeFile(wb, 'Knipping_Shipments.xlsx');
 }
