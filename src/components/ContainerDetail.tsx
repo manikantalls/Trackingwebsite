@@ -1,6 +1,7 @@
 import { ArrowLeft, Package, Ship, Weight, Hash, Calendar, FileText, Layers } from 'lucide-react';
 import { Shipment } from '../types';
 import StatusBadge from './StatusBadge';
+import DocumentsSection from './DocumentsSection';
 
 interface Props {
   container: string;
@@ -148,6 +149,9 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
             <span className="font-semibold text-gray-600">{totalKg.toLocaleString()} kg total</span>
           </div>
         </div>
+
+        {/* Documents for this container */}
+        <DocumentsSection container={container} />
 
       </div>
     </div>

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
 import StatusBadge from './StatusBadge';
+import DocumentsSection from './DocumentsSection';
 
 interface Props {
   shipment: Shipment;
@@ -182,6 +183,9 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Documents for this shipment */}
+        <DocumentsSection shipmentId={s.id} />
 
       </div>
     </div>
