@@ -98,12 +98,25 @@ export default function UserManagement({ onBack }: Props) {
   async function handleDelete(profile: Profile) {
     if (!window.confirm(`Remove user "${profile.email}"? This cannot be undone.`)) return;
     setDeleting(profile.id);
-    const { error } = await supabase.from('profiles').delete().eq('id', profile.id);
-    if (error) {
-      showToast('Failed to remove user.', true);
-    } else {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ userId: profile.id }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to delete user');
       showToast('User removed.');
       await load();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to remove user.', true);
     }
     setDeleting(null);
   }

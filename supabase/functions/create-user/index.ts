@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
@@ -50,6 +50,33 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── DELETE user ──────────────────────────────────────────────
+    if (req.method === "DELETE") {
+      const { userId } = await req.json();
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "userId is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Delete profile first, then auth user
+      await adminClient.from("profiles").delete().eq("id", userId);
+      const { error: deleteErr } = await adminClient.auth.admin.deleteUser(userId);
+      if (deleteErr) {
+        return new Response(JSON.stringify({ error: deleteErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── CREATE user ──────────────────────────────────────────────
     const { email, password, full_name, role } = await req.json();
 
     if (!email || !password) {
