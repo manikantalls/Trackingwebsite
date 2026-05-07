@@ -77,12 +77,12 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
         type={type}
         required={required}
         value={
-          (name === 'ets' || name === 'eta')
+          (name === 'ets' || name === 'eta' || name === 'pickUp')
             ? toLocalDate(String(form[name] ?? ''))
             : String(form[name] ?? '')
         }
         onChange={(e) => {
-          const v = (name === 'ets' || name === 'eta')
+          const v = (name === 'ets' || name === 'eta' || name === 'pickUp')
             ? fromLocalDate(e.target.value)
             : e.target.value;
           set(name, v as never);
@@ -139,7 +139,7 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
             <section>
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Shipping Information</h4>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Field label="Pick Up" name="pickUp" />
+                <Field label="Pick Up" name="pickUp" type="date" />
                 <Field label="Booking" name="booking" />
                 <Field label="Vessel" name="vessel" />
                 <Field label="Container" name="container" />

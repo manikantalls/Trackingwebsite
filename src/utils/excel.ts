@@ -92,7 +92,7 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
             quantity: String(col(row, 'Quantity', 'quantity', 'Menge')),
             package: String(col(row, 'Package', 'package', 'Paket')),
             kilo: Number(col(row, 'Kilo', 'kilo', 'Weight', 'weight', 'Gewicht') || 0),
-            pickUp: String(col(row, 'Pick up', 'Pick Up', 'Pickup', 'pickup', 'pickUp')),
+            pickUp: parseDate(col(row, 'Pick up', 'Pick Up', 'Pickup', 'pickup', 'pickUp')),
             booking: String(col(row, 'Booking', 'booking', 'Buchung')),
             vessel: String(col(row, 'Vessel', 'vessel', 'Schiff')),
             container: String(col(row, 'Container', 'container')),

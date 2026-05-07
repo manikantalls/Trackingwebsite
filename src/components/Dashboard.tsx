@@ -335,7 +335,7 @@ export default function Dashboard({ onView, onUserManagement }: Props) {
                       <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.quantity}</td>
                       <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.package}</td>
                       <td className="px-3 py-2 text-gray-600 border-r border-gray-50 text-right">{s.kilo}</td>
-                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.pickUp}</td>
+                      <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.pickUp)}</td>
                       <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.booking}</td>
                       <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.vessel}</td>
                       <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.container}</td>

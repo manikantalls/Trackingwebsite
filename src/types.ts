@@ -17,7 +17,7 @@ export interface Shipment {
   quantity: string;       // e.g. "2500 PCS" or "1000 KG"
   package: string;        // e.g. "1 Carton"
   kilo: number;           // weight in kg
-  pickUp: string;         // pickup date, e.g. "17. Apr"
+  pickUp: string;         // pickup date (ISO date string)
   booking: string;        // booking ref, e.g. "459HA1570954"
   vessel: string;         // e.g. "MSC Alicante"
   container: string;      // container number, e.g. "MSNU9565311"
