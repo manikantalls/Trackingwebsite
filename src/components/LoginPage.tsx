@@ -32,7 +32,7 @@ export default function LoginPage() {
               <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200 mb-4">
                 <Package className="w-7 h-7 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">EFTEC Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Knipping- LLS Dashboard</h1>
               <p className="text-sm text-gray-500 mt-1">Shipment Tracking Portal</p>
             </div>
 
@@ -98,9 +98,13 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Contact your administrator to get access.
-        </p>
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <p className="text-xs font-semibold text-blue-900 mb-2">Admin Credentials:</p>
+          <div className="space-y-1 text-xs text-blue-800">
+            <p><span className="font-medium">Email:</span> admin@knipping.com</p>
+            <p><span className="font-medium">Password:</span> Admin123!</p>
+          </div>
+        </div>
       </div>
     </div>
   );
