@@ -1,20 +1,31 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import {
   Users, UserPlus, Trash2, Shield, User, X, AlertCircle,
-  CheckCircle2, ArrowLeft, Eye, EyeOff, RefreshCw,
+  CheckCircle2, ArrowLeft, Eye, EyeOff, RefreshCw, Upload,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { supabase, Profile } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   onBack: () => void;
 }
 
+interface ImportedUser {
+  email: string;
+  password: string;
+  full_name: string;
+  role: 'user' | 'admin';
+}
+
 export default function UserManagement({ onBack }: Props) {
+  const { session } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+  const [toastError, setToastError] = useState(false);
 
   // New user form
   const [newEmail, setNewEmail] = useState('');
@@ -25,6 +36,12 @@ export default function UserManagement({ onBack }: Props) {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Import
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportedUser[] | null>(null);
+  const [importError, setImportError] = useState('');
+
   async function load() {
     setLoading(true);
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: true });
@@ -34,66 +51,56 @@ export default function UserManagement({ onBack }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  function showToast(msg: string) {
+  function showToast(msg: string, isError = false) {
     setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    setToastError(isError);
+    setTimeout(() => setToast(''), 4000);
+  }
+
+  async function callCreateUser(payload: { email: string; password: string; full_name: string; role: 'user' | 'admin' }) {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Failed to create user');
+    return json;
   }
 
   async function handleAddUser(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setFormError('');
-
-    // Use signUp to create the user — the trigger auto-creates profile
-    const { data, error: signUpErr } = await supabase.auth.admin
-      ? // admin API not available in browser; use our edge function pattern
-        // We'll use a server-side approach via supabase.functions or the service key
-        // Since we can't use admin API client-side, we sign up and then update the profile
-        await supabase.auth.signUp({
-          email: newEmail,
-          password: newPassword,
-          options: { data: { full_name: newName, role: newRole } },
-        })
-      : await supabase.auth.signUp({
-          email: newEmail,
-          password: newPassword,
-          options: { data: { full_name: newName, role: newRole } },
-        });
-
-    if (signUpErr) {
-      setFormError(signUpErr.message);
+    try {
+      await callCreateUser({ email: newEmail, password: newPassword, full_name: newName, role: newRole });
+      setNewEmail('');
+      setNewName('');
+      setNewPassword('');
+      setNewRole('user');
+      setShowAdd(false);
+      showToast('User created successfully');
+      await load();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    const uid = data?.user?.id;
-    if (uid) {
-      // Upsert profile with the chosen role (trigger may have already created it)
-      await supabase.from('profiles').upsert({
-        id: uid,
-        email: newEmail,
-        full_name: newName,
-        role: newRole,
-      }, { onConflict: 'id' });
-    }
-
-    setNewEmail('');
-    setNewName('');
-    setNewPassword('');
-    setNewRole('user');
-    setShowAdd(false);
-    showToast('User created successfully');
-    await load();
-    setSubmitting(false);
   }
 
   async function handleDelete(profile: Profile) {
     if (!window.confirm(`Remove user "${profile.email}"? This cannot be undone.`)) return;
     setDeleting(profile.id);
-    // Delete the profile row; auth user remains but can no longer log in meaningfully
     const { error } = await supabase.from('profiles').delete().eq('id', profile.id);
     if (error) {
-      showToast('Failed to remove user.');
+      showToast('Failed to remove user.', true);
     } else {
       showToast('User removed.');
       await load();
@@ -102,14 +109,72 @@ export default function UserManagement({ onBack }: Props) {
   }
 
   async function handleRoleToggle(profile: Profile) {
-    const newRole = profile.role === 'admin' ? 'user' : 'admin';
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', profile.id);
+    const nextRole = profile.role === 'admin' ? 'user' : 'admin';
+    const { error } = await supabase.from('profiles').update({ role: nextRole }).eq('id', profile.id);
     if (!error) {
-      showToast(`Role updated to ${newRole}`);
+      showToast(`Role updated to ${nextRole}`);
       await load();
+    }
+  }
+
+  // ── Excel import ──────────────────────────────────────────────
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError('');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+
+        const users: ImportedUser[] = rows.map((row) => {
+          const role = String(row['Role'] ?? row['role'] ?? 'user').toLowerCase();
+          return {
+            email: String(row['Email'] ?? row['email'] ?? '').trim(),
+            password: String(row['Password'] ?? row['password'] ?? '').trim(),
+            full_name: String(row['Full Name'] ?? row['full_name'] ?? row['Name'] ?? '').trim(),
+            role: (role === 'admin' ? 'admin' : 'user') as 'user' | 'admin',
+          };
+        }).filter((u) => u.email && u.password);
+
+        if (users.length === 0) {
+          setImportError('No valid rows found. Expected columns: Email, Password, Full Name, Role');
+          setImportPreview(null);
+        } else {
+          setImportPreview(users);
+        }
+      } catch {
+        setImportError('Failed to parse file. Check format and try again.');
+        setImportPreview(null);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleImportConfirm() {
+    if (!importPreview) return;
+    setImporting(true);
+    let successCount = 0;
+    const errors: string[] = [];
+    for (const u of importPreview) {
+      try {
+        await callCreateUser(u);
+        successCount++;
+      } catch (err) {
+        errors.push(`${u.email}: ${err instanceof Error ? err.message : 'error'}`);
+      }
+    }
+    setImporting(false);
+    setImportPreview(null);
+    await load();
+    if (errors.length === 0) {
+      showToast(`${successCount} user${successCount !== 1 ? 's' : ''} imported successfully`);
+    } else {
+      showToast(`${successCount} imported, ${errors.length} failed: ${errors[0]}`, true);
     }
   }
 
@@ -125,8 +190,8 @@ export default function UserManagement({ onBack }: Props) {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 bg-emerald-600 text-white text-sm rounded-xl shadow-lg">
-          <CheckCircle2 className="w-4 h-4" />
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 text-white text-sm rounded-xl shadow-lg transition-all ${toastError ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
           {toast}
         </div>
       )}
@@ -142,11 +207,19 @@ export default function UserManagement({ onBack }: Props) {
             Back to Dashboard
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={load} className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-              <RefreshCw className="w-4 h-4" />
+            <button onClick={load} className="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Refresh">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
-              onClick={() => setShowAdd(true)}
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Import Excel
+            </button>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
+            <button
+              onClick={() => { setShowAdd(true); setFormError(''); }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
             >
               <UserPlus className="w-4 h-4" />
@@ -154,6 +227,66 @@ export default function UserManagement({ onBack }: Props) {
             </button>
           </div>
         </div>
+
+        {/* Import preview */}
+        {importPreview && (
+          <div className="bg-white border border-blue-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-800">Import Preview</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{importPreview.length} user{importPreview.length !== 1 ? 's' : ''} ready to import</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setImportPreview(null)}
+                  className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImportConfirm}
+                  disabled={importing}
+                  className="px-4 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {importing ? 'Importing…' : 'Confirm Import'}
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto max-h-56 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-gray-50">
+                  <tr>
+                    {['Email', 'Full Name', 'Role', 'Password'].map((h) => (
+                      <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 border-b border-gray-100">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {importPreview.map((u, i) => (
+                    <tr key={i} className="hover:bg-gray-50/60">
+                      <td className="px-4 py-2 text-gray-700">{u.email}</td>
+                      <td className="px-4 py-2 text-gray-600">{u.full_name || '—'}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${u.role === 'admin' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {u.role === 'admin' ? <Shield className="w-2.5 h-2.5" /> : <User className="w-2.5 h-2.5" />}
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-gray-400 font-mono">{'•'.repeat(Math.min(u.password.length, 10))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {importError && (
+          <div className="flex items-start gap-2.5 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            {importError}
+          </div>
+        )}
 
         {/* Add User modal */}
         {showAdd && (
@@ -312,6 +445,11 @@ export default function UserManagement({ onBack }: Props) {
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* Import format hint */}
+        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-500">
+          <span className="font-semibold text-gray-600">Excel import format:</span> Columns — <span className="font-mono">Email</span>, <span className="font-mono">Password</span>, <span className="font-mono">Full Name</span>, <span className="font-mono">Role</span> (user/admin)
         </div>
       </div>
     </div>
