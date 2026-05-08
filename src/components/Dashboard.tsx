@@ -4,7 +4,7 @@ import {
   Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw, X, Layers,
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
-import { fetchShipments, upsertShipment, replaceAllShipments, deleteShipment } from '../data/store';
+import { fetchShipments, upsertShipment, upsertShipments, deleteShipment } from '../data/store';
 import { parseExcelFile, exportToExcel } from '../utils/excel';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from './StatusBadge';
@@ -154,7 +154,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
     setImportError('');
     try {
       const imported = await parseExcelFile(file);
-      await replaceAllShipments(imported);
+      await upsertShipments(imported);
       await load();
     } catch {
       setImportError('Failed to parse file. Check column headers and try again.');
