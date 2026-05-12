@@ -36,7 +36,7 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
     <div className="min-h-screen bg-gray-50">
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3">
-        <img src="/logo.png" alt="Knipping Logo" className="h-8 w-auto object-contain" />
+        <img src="/logo.png" alt="Knipping Logo" className="h-14 w-auto object-contain" />
         <span className="text-base font-semibold text-gray-700">Knipping LLS Dashboard</span>
       </div>
 
