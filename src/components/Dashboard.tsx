@@ -193,9 +193,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-            <Package className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logo.png" alt="Knipping Logo" className="h-9 w-auto object-contain" />
           <div>
             <h1 className="text-base font-bold text-gray-900 leading-tight">Knipping- LLS Mexico Consol Dashboard</h1>
             <p className="text-xs text-gray-400">Monitor all your shipments</p>
