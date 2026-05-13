@@ -98,7 +98,7 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice', 'Delivery Note', 'PO', 'Part Number', 'Quantity', 'Package', 'Weight (kg)', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'Status'].map((h, i) => (
+                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice Spl', 'Delivery Note', 'PO', 'Part Number', 'Quantity', 'Package', 'Weight (kg)', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'Status'].map((h, i) => (
                     <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
                       {h}
                     </th>

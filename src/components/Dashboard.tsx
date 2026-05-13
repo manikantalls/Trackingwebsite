@@ -95,7 +95,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
     };
     for (const s of shipments) {
       add('LLS Ref', s.llsReference);
-      add('Invoice', s.invoice);
+      add('Invoice Spl', s.invoice);
       add('Delivery Note', s.deliveryNote);
       add('PO', s.po);
       add('Booking', s.booking);
@@ -459,7 +459,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {[
-                      'CW Consolidation','LLS Reference','Supplier','Invoice','Delivery Note',
+                      'CW Consolidation','LLS Reference','Supplier','Invoice Spl','Delivery Note',
                       'PO','Part Number','Quantity','Package','Kilo',
                       'Pick up','Booking','Vessel','Container',
                       'ETS','ETA','ETA Knipping','Status',
