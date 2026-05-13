@@ -14,6 +14,7 @@ import ShipmentModal from './ShipmentModal';
 interface Props {
   onView: (id: string) => void;
   onViewContainer: (container: string) => void;
+  onViewPartNumber: (partNumber: string) => void;
   onUserManagement: () => void;
 }
 
@@ -28,7 +29,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'DELIVERED', label: 'Delivered' },
 ];
 
-export default function Dashboard({ onView, onViewContainer, onUserManagement }: Props) {
+export default function Dashboard({ onView, onViewContainer, onViewPartNumber, onUserManagement }: Props) {
   const { profile, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
@@ -482,13 +483,14 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                 const suppliers = Array.from(new Set(rows.map((r) => r.supplier).filter(Boolean)));
                 const statuses = Array.from(new Set(rows.map((r) => r.status)));
                 return (
-                  <div
+                  <button
                     key={partKey}
-                    className="text-left bg-white border border-gray-200 rounded-2xl p-5 shadow-sm"
+                    onClick={() => onViewPartNumber(partKey)}
+                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-emerald-300 hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                           <Layers className="text-emerald-600" style={{ width: 18, height: 18 }} />
                         </div>
                         <div>
@@ -496,6 +498,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                           <p className="font-mono font-bold text-gray-900 text-sm leading-tight">{partKey}</p>
                         </div>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors mt-1 shrink-0" />
                     </div>
                     <div className="grid grid-cols-3 gap-2 mb-4">
                       <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
@@ -521,7 +524,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                         <StatusBadge key={st} status={st} />
                       ))}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

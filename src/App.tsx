@@ -4,6 +4,7 @@ import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import ShipmentDetail from './components/ShipmentDetail';
 import ContainerDetail from './components/ContainerDetail';
+import PartNumberDetail from './components/PartNumberDetail';
 import UserManagement from './components/UserManagement';
 import ForceResetPassword from './components/ForceResetPassword';
 import { fetchShipments } from './data/store';
@@ -13,6 +14,7 @@ type View =
   | { page: 'dashboard' }
   | { page: 'detail'; id: string }
   | { page: 'container'; container: string }
+  | { page: 'partNumber'; partNumber: string }
   | { page: 'users' };
 
 function AppInner() {
@@ -51,6 +53,12 @@ function AppInner() {
     setView({ page: 'container', container });
   }
 
+  async function handleViewPartNumber(partNumber: string) {
+    const shipments = await fetchShipments();
+    setAllShipments(shipments);
+    setView({ page: 'partNumber', partNumber });
+  }
+
   if (view.page === 'detail' && detailShipment) {
     return (
       <ShipmentDetail
@@ -72,6 +80,18 @@ function AppInner() {
     );
   }
 
+  if (view.page === 'partNumber') {
+    const partShipments = allShipments.filter((s) => (s.partNumber || '(no part number)') === view.partNumber);
+    return (
+      <PartNumberDetail
+        partNumber={view.partNumber}
+        shipments={partShipments}
+        onBack={() => setView({ page: 'dashboard' })}
+        onViewShipment={(id) => handleView(id)}
+      />
+    );
+  }
+
   if (view.page === 'users') {
     return <UserManagement onBack={() => setView({ page: 'dashboard' })} />;
   }
@@ -80,6 +100,7 @@ function AppInner() {
     <Dashboard
       onView={handleView}
       onViewContainer={handleViewContainer}
+      onViewPartNumber={handleViewPartNumber}
       onUserManagement={() => setView({ page: 'users' })}
     />
   );
