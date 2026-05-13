@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, Filter, Upload, Download, Package, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw, X, Layers,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
 import { fetchShipments, upsertShipment, upsertShipments, deleteShipment } from '../data/store';
@@ -49,6 +50,8 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
   const [groupByContainer, setGroupByContainer] = useState(false);
   const [groupByPartNumber, setGroupByPartNumber] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const fileRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -128,6 +131,46 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
     const matchVessel = vesselFilter === 'ALL' || s.vessel === vesselFilter;
     return matchQ && matchStatus && matchCW && matchVessel;
   });
+
+  const COL_KEYS: Record<string, keyof Shipment> = {
+    'CW Consolidation': 'cw',
+    'LLS Reference': 'llsReference',
+    'Supplier': 'supplier',
+    'Invoice Spl': 'invoice',
+    'Delivery Note': 'deliveryNote',
+    'PO': 'po',
+    'Part Number': 'partNumber',
+    'Quantity': 'quantity',
+    'Package': 'package',
+    'Kilo': 'kilo',
+    'Pick up': 'pickUp',
+    'Booking': 'booking',
+    'Vessel': 'vessel',
+    'Container': 'container',
+    'ETS': 'ets',
+    'ETA': 'eta',
+    'ETA Knipping': 'etaKnipping',
+    'Status': 'status',
+  };
+
+  function handleSort(col: string) {
+    if (!COL_KEYS[col]) return;
+    if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  const sorted = useMemo(() => {
+    if (!sortCol || !COL_KEYS[sortCol]) return filtered;
+    const key = COL_KEYS[sortCol];
+    return [...filtered].sort((a, b) => {
+      const av = a[key] ?? '';
+      const bv = b[key] ?? '';
+      const cmp = typeof av === 'number' && typeof bv === 'number'
+        ? av - bv
+        : String(av).localeCompare(String(bv));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [filtered, sortCol, sortDir]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Shipment[]>();
@@ -549,11 +592,28 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                       'Pick up','Booking','Vessel','Container',
                       'ETS','ETA','ETA Knipping','Status',
                       ...(isAdmin ? [''] : []),
-                    ].map((h, i) => (
-                      <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0 bg-gray-50">
-                        {h}
-                      </th>
-                    ))}
+                    ].map((h, i) => {
+                      const sortable = !!COL_KEYS[h];
+                      const active = sortCol === h;
+                      return (
+                        <th
+                          key={i}
+                          onClick={() => handleSort(h)}
+                          className={`text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0 bg-gray-50 ${sortable ? 'cursor-pointer select-none hover:bg-gray-100 hover:text-gray-700' : ''}`}
+                        >
+                          <div className="flex items-center gap-1">
+                            {h}
+                            {sortable && (
+                              active
+                                ? sortDir === 'asc'
+                                  ? <ArrowUp className="w-3 h-3 text-blue-500 shrink-0" />
+                                  : <ArrowDown className="w-3 h-3 text-blue-500 shrink-0" />
+                                : <ArrowUpDown className="w-3 h-3 text-gray-300 shrink-0" />
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -570,7 +630,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((s) => (
+                    sorted.map((s) => (
                       <tr
                         key={s.id}
                         onClick={() => onView(s.id)}
