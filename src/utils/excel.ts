@@ -40,7 +40,10 @@ function col(row: Record<string, unknown>, ...keys: string[]): unknown {
 
 // Find the header row index by looking for a row containing known column names
 function findHeaderRow(rawRows: unknown[][]): number {
-  const knownHeaders = ['invoice', 'supplier', 'lls reference', 'vessel', 'container', 'status', 'cw', 'booking'];
+  const knownHeaders = [
+    'invoice', 'supplier', 'lls reference', 'vessel', 'container', 'status',
+    'cw', 'cw consolidation', 'booking', 'part number', 'delivery note',
+  ];
   for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
     const row = rawRows[i];
     if (!Array.isArray(row)) continue;
@@ -74,7 +77,7 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
           const rawStatus = String(col(row, 'Status', 'status') ?? '');
           const { status, statusNote } = detectStatus(rawStatus);
 
-          const cw           = String(col(row, 'CW', 'cw'));
+          const cw           = String(col(row, 'CW Consolidation', 'CW', 'cw consolidation', 'cw', 'KW', 'kw'));
           const llsRef       = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
           const supplier     = String(col(row, 'Supplier', 'supplier'));
           const invoice      = String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung'));
