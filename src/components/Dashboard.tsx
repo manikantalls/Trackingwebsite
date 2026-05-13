@@ -47,6 +47,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
   const [groupByContainer, setGroupByContainer] = useState(false);
+  const [groupByPartNumber, setGroupByPartNumber] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -132,6 +133,16 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
     const map = new Map<string, Shipment[]>();
     for (const s of filtered) {
       const key = s.container || '(no container)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+
+  const groupedByPartNumber = useMemo(() => {
+    const map = new Map<string, Shipment[]>();
+    for (const s of filtered) {
+      const key = s.partNumber || '(no part number)';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     }
@@ -359,7 +370,16 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
           </button>
 
           <button
-            onClick={() => { setGroupByContainer((v) => !v); setCollapsedGroups(new Set()); }}
+            onClick={() => { setGroupByPartNumber((v) => !v); if (!groupByPartNumber) setGroupByContainer(false); setCollapsedGroups(new Set()); }}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors font-medium ${groupByPartNumber ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+            title="Group by part number"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            Group by Part Number
+          </button>
+
+          <button
+            onClick={() => { setGroupByContainer((v) => !v); if (!groupByContainer) setGroupByPartNumber(false); setCollapsedGroups(new Set()); }}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors font-medium ${groupByContainer ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
             title="Group by container"
           >
@@ -372,8 +392,71 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
           </span>
         </div>
 
+        {/* Part Number card grid */}
+        {groupByPartNumber ? (
+          loadingData ? (
+            <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Loading shipments…</div>
+          ) : groupedByPartNumber.length === 0 ? (
+            <div className="flex items-center justify-center py-20 text-gray-400 text-sm">No shipments match your filters.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {groupedByPartNumber.map(([partKey, rows]) => {
+                const totalKg = rows.reduce((sum, r) => sum + (r.kilo || 0), 0);
+                const totalPieces = rows.reduce((sum, r) => {
+                  const n = parseInt(r.quantity);
+                  return sum + (isNaN(n) ? 0 : n);
+                }, 0);
+                const suppliers = Array.from(new Set(rows.map((r) => r.supplier).filter(Boolean)));
+                const statuses = Array.from(new Set(rows.map((r) => r.status)));
+                return (
+                  <div
+                    key={partKey}
+                    className="text-left bg-white border border-gray-200 rounded-2xl p-5 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                          <Layers className="text-emerald-600" style={{ width: 18, height: 18 }} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Part Number</p>
+                          <p className="font-mono font-bold text-gray-900 text-sm leading-tight">{partKey}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-900 leading-none">{rows.length}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Shipments</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-900 leading-none">{totalKg.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">kg</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-900 leading-none">{totalPieces > 0 ? totalPieces.toLocaleString() : '—'}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Pieces</p>
+                      </div>
+                    </div>
+                    {suppliers.length > 0 && (
+                      <p className="text-xs text-gray-500 truncate mb-3">
+                        <span className="font-medium text-gray-700">Supplier:</span> {suppliers.join(', ')}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {statuses.map((st) => (
+                        <StatusBadge key={st} status={st} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : null}
+
         {/* Container card grid */}
-        {groupByContainer ? (
+        {!groupByPartNumber && groupByContainer ? (
           loadingData ? (
             <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Loading shipments…</div>
           ) : grouped.length === 0 ? (
@@ -451,8 +534,10 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
               })}
             </div>
           )
-        ) : (
-          /* Flat table */
+        ) : null}
+
+        {/* Flat table */}
+        {!groupByPartNumber && !groupByContainer && (
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs whitespace-nowrap">
