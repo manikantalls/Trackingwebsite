@@ -15,6 +15,14 @@ function fmtDate(iso: string) {
   return isNaN(d.getTime()) ? iso : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 }
 
+function ddpLeadTime(eta: string, days: number): string {
+  if (!eta) return '—';
+  const d = new Date(eta);
+  if (isNaN(d.getTime())) return '—';
+  d.setDate(d.getDate() + (days ?? 10));
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+}
+
 export default function PartNumberDetail({ partNumber, shipments, onBack, onViewShipment }: Props) {
   const totalKg = shipments.reduce((sum, s) => sum + (s.kilo || 0), 0);
   const totalPieces = shipments.reduce((sum, s) => {
@@ -78,7 +86,7 @@ export default function PartNumberDetail({ partNumber, shipments, onBack, onView
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice Spl', 'Delivery Note', 'PO', 'Quantity', 'Package', 'Weight (kg)', 'Container', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'Status'].map((h, i) => (
+                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice Spl', 'Delivery Note', 'PO', 'Quantity', 'Package', 'Weight (kg)', 'Container', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'DDP Lead Time', 'Status'].map((h, i) => (
                     <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
                       {h}
                     </th>
@@ -108,6 +116,7 @@ export default function PartNumberDetail({ partNumber, shipments, onBack, onView
                     <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
                     <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
                     <td className="px-3 py-2.5 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
+                    <td className="px-3 py-2.5 text-blue-700 font-semibold border-r border-gray-50">{ddpLeadTime(s.eta, s.customClearance ?? 10)}</td>
                     <td className="px-3 py-2.5">
                       <StatusBadge status={s.status} note={s.statusNote} />
                     </td>

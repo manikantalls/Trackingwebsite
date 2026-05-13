@@ -158,6 +158,13 @@ export function exportToExcel(shipments: Shipment[]): void {
     ETS: s.ets ? new Date(s.ets).toLocaleDateString('de-DE') : '',
     ETA: s.eta ? new Date(s.eta).toLocaleDateString('de-DE') : '',
     'ETA Knipping': s.etaKnipping,
+    'DDP Lead Time': (() => {
+      if (!s.eta) return '';
+      const d = new Date(s.eta);
+      if (isNaN(d.getTime())) return '';
+      d.setDate(d.getDate() + (s.customClearance ?? 10));
+      return d.toLocaleDateString('de-DE');
+    })(),
     Status: s.statusNote || s.status,
   }));
 

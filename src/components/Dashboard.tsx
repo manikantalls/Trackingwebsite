@@ -269,6 +269,14 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
     return isNaN(d.getTime()) ? iso : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
   }
 
+  function ddpLeadTime(eta: string, days: number): string {
+    if (!eta) return '—';
+    const d = new Date(eta);
+    if (isNaN(d.getTime())) return '—';
+    d.setDate(d.getDate() + (days ?? 10));
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -657,8 +665,8 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                       'CW Consolidation','LLS Reference','Supplier','Invoice Spl','Delivery Note',
                       'PO','Part Number','Quantity','Package','Kilo',
                       'Pick up','Booking','Vessel','Container',
-                      'ETS','ETA','ETA Knipping','Status',
-                      ...(isAdmin ? [''] : []),
+                      'ETS','ETA','ETA Knipping','DDP Lead Time','Status',
+                      ...(isAdmin ? ['Custom Clearance (days)', ''] : []),
                     ].map((h, i) => {
                       const sortable = !!COL_KEYS[h];
                       const active = sortCol === h;
@@ -686,13 +694,13 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                 <tbody className="divide-y divide-gray-50">
                   {loadingData ? (
                     <tr>
-                      <td colSpan={isAdmin ? 20 : 18} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 22 : 19} className="px-4 py-12 text-center text-gray-400">
                         Loading shipments…
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isAdmin ? 20 : 18} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 22 : 19} className="px-4 py-12 text-center text-gray-400">
                         No shipments match your filters.
                       </td>
                     </tr>
@@ -732,9 +740,13 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
                         <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
+                        <td className="px-3 py-2 text-blue-700 font-semibold border-r border-gray-50">{ddpLeadTime(s.eta, s.customClearance ?? 10)}</td>
                         <td className="px-3 py-2 border-r border-gray-50">
                           <StatusBadge status={s.status} note={s.statusNote} />
                         </td>
+                        {isAdmin && (
+                          <td className="px-3 py-2 text-center text-gray-700 border-r border-gray-50 font-medium">{s.customClearance ?? 10}</td>
+                        )}
                         {isAdmin && (
                           <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

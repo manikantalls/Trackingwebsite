@@ -27,4 +27,5 @@ export interface Shipment {
   status: ShipmentStatus;
   statusNote: string;     // display text, e.g. "departed 28.04"
   lastUpdated: string;    // ISO date
+  customClearance: number; // days for customs clearance, default 10; used to compute DDP Lead Time = ETA + customClearance
 }

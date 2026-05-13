@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   initial?: Shipment;
@@ -37,6 +38,7 @@ const BLANK: Omit<Shipment, 'id'> = {
   status: 'AT_DEPARTURE_PORT',
   statusNote: 'at departure port',
   lastUpdated: new Date().toISOString(),
+  customClearance: 10,
 };
 
 function toLocalDate(iso: string) {
@@ -54,6 +56,9 @@ function fromLocalDate(d: string) {
 }
 
 export default function ShipmentModal({ initial, onSave, onClose }: Props) {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+
   const [form, setForm] = useState<Omit<Shipment, 'id'>>(() =>
     initial ? { ...initial } : { ...BLANK }
   );
@@ -146,6 +151,22 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
                 <Field label="ETS" name="ets" type="date" />
                 <Field label="ETA" name="eta" type="date" />
                 <Field label="ETA Knipping" name="etaKnipping" />
+                {isAdmin && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Custom Clearance (days)
+                      <span className="ml-1.5 text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase tracking-wide">Admin</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.customClearance ?? 10}
+                      onChange={(e) => set('customClearance', Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/30"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">DDP Lead Time = ETA + this many days</p>
+                  </div>
+                )}
               </div>
             </section>
 

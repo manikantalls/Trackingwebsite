@@ -162,10 +162,17 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
             <Field icon={<Container className="w-3.5 h-3.5" />} label="Container" value={
               <span className="font-mono font-bold text-gray-800">{s.container}</span>
             } />
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETS" value={fmtDate(s.ets)} />
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETA" value={fmtDate(s.eta)} />
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETA Knipping" value={s.etaKnipping} />
+              <Field icon={<Calendar className="w-3.5 h-3.5" />} label="DDP Lead Time" value={(() => {
+                if (!s.eta) return '—';
+                const d = new Date(s.eta);
+                if (isNaN(d.getTime())) return '—';
+                d.setDate(d.getDate() + (s.customClearance ?? 10));
+                return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+              })()} />
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">

@@ -24,6 +24,7 @@ function toRow(s: Shipment): Record<string, unknown> {
     status: s.status,
     status_note: s.statusNote,
     last_updated: s.lastUpdated,
+    custom_clearance: s.customClearance ?? 10,
   };
 }
 
@@ -50,6 +51,7 @@ function fromRow(r: Record<string, unknown>): Shipment {
     status: (r.status as Shipment['status']) ?? 'AT_DEPARTURE_PORT',
     statusNote: String(r.status_note ?? ''),
     lastUpdated: String(r.last_updated ?? new Date().toISOString()),
+    customClearance: Number(r.custom_clearance ?? 10),
   };
 }
 
