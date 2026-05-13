@@ -98,7 +98,7 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {['CW', 'LLS Reference', 'Supplier', 'Invoice', 'Delivery Note', 'PO', 'Part Number', 'Quantity', 'Package', 'Weight (kg)', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'Status'].map((h, i) => (
+                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice', 'Delivery Note', 'PO', 'Part Number', 'Quantity', 'Package', 'Weight (kg)', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'Status'].map((h, i) => (
                     <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
                       {h}
                     </th>
@@ -113,7 +113,7 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
                     className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                   >
                     <td className="px-3 py-2.5 border-r border-gray-50">
-                      <span className="text-gray-700">{s.cw}</span>
+                      <span className="text-gray-700">{s.cw.replace(/^CW/i, '')}</span>
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 font-medium border-r border-gray-50">{s.llsReference}</td>
                     <td className="px-3 py-2.5 text-gray-700 border-r border-gray-50">{s.supplier}</td>

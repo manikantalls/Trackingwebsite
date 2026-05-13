@@ -459,7 +459,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {[
-                      'CW','LLS Reference','Supplier','Invoice','Delivery Note',
+                      'CW Consolidation','LLS Reference','Supplier','Invoice','Delivery Note',
                       'PO','Part Number','Quantity','Package','Kilo',
                       'Pick up','Booking','Vessel','Container',
                       'ETS','ETA','ETA Knipping','Status',
@@ -492,7 +492,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                         className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                       >
                         <td className="px-3 py-2 border-r border-gray-50">
-                          <span className="text-gray-700">{s.cw}</span>
+                          <span className="text-gray-700">{s.cw.replace(/^CW/i, '')}</span>
                         </td>
                         <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.llsReference}</td>
                         <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.supplier}</td>
