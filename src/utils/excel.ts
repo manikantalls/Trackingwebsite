@@ -70,35 +70,55 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
           range: headerIdx,
         });
 
-        const shipments: Shipment[] = rows.map((row, i) => {
+        const shipments: Shipment[] = rows.map((row) => {
           const rawStatus = String(col(row, 'Status', 'status') ?? '');
           const { status, statusNote } = detectStatus(rawStatus);
 
-          const llsRef = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
-          const invoice = String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung'));
+          const cw           = String(col(row, 'CW', 'cw'));
+          const llsRef       = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
+          const supplier     = String(col(row, 'Supplier', 'supplier'));
+          const invoice      = String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung'));
+          const deliveryNote = String(col(row, 'Delivery Note', 'DeliveryNote', 'deliveryNote', 'delivery_note', 'Lieferschein'));
+          const po           = String(col(row, 'PO', 'po', 'Purchase Order', 'purchase_order'));
+          const partNumber   = String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer'));
+          const quantity     = String(col(row, 'Quantity', 'quantity', 'Menge'));
+          const pkg          = String(col(row, 'Package', 'package', 'Paket'));
+          const kilo         = Number(col(row, 'Kilo', 'kilo', 'Weight', 'weight', 'Gewicht') || 0);
+          const pickUp       = parseDate(col(row, 'Pick up', 'Pick Up', 'Pickup', 'pickup', 'pickUp'));
+          const booking      = String(col(row, 'Booking', 'booking', 'Buchung'));
+          const vessel       = String(col(row, 'Vessel', 'vessel', 'Schiff'));
+          const container    = String(col(row, 'Container', 'container'));
+          const ets          = parseDate(col(row, 'ETS', 'ets'));
+          const eta          = parseDate(col(row, 'ETA', 'eta'));
+          const etaKnipping  = String(col(row, 'ETA Knipping', 'etaKnipping', 'eta_knipping'));
 
-          // Generate a stable ID so re-imports update existing rows
-          const stableId = String(col(row, 'ID', 'id') || `${llsRef}-${invoice}-${i}`.replace(/\s+/g, '-'));
+          // Stable ID derived from all content columns — identical rows always get the same ID,
+          // so re-importing the same sheet upserts instead of inserting duplicates.
+          const explicitId = String(col(row, 'ID', 'id') || '');
+          const stableId = explicitId || [
+            cw, llsRef, supplier, invoice, deliveryNote, po, partNumber,
+            quantity, pkg, String(kilo), pickUp, booking, vessel, container, ets, eta, etaKnipping,
+          ].join('|').replace(/\s+/g, ' ').trim();
 
           return {
             id: stableId,
-            cw: String(col(row, 'CW', 'cw')),
+            cw,
             llsReference: llsRef,
-            supplier: String(col(row, 'Supplier', 'supplier')),
+            supplier,
             invoice,
-            deliveryNote: String(col(row, 'Delivery Note', 'DeliveryNote', 'deliveryNote', 'delivery_note', 'Lieferschein')),
-            po: String(col(row, 'PO', 'po', 'Purchase Order', 'purchase_order')),
-            partNumber: String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer')),
-            quantity: String(col(row, 'Quantity', 'quantity', 'Menge')),
-            package: String(col(row, 'Package', 'package', 'Paket')),
-            kilo: Number(col(row, 'Kilo', 'kilo', 'Weight', 'weight', 'Gewicht') || 0),
-            pickUp: parseDate(col(row, 'Pick up', 'Pick Up', 'Pickup', 'pickup', 'pickUp')),
-            booking: String(col(row, 'Booking', 'booking', 'Buchung')),
-            vessel: String(col(row, 'Vessel', 'vessel', 'Schiff')),
-            container: String(col(row, 'Container', 'container')),
-            ets: parseDate(col(row, 'ETS', 'ets')),
-            eta: parseDate(col(row, 'ETA', 'eta')),
-            etaKnipping: String(col(row, 'ETA Knipping', 'etaKnipping', 'eta_knipping')),
+            deliveryNote,
+            po,
+            partNumber,
+            quantity,
+            package: pkg,
+            kilo,
+            pickUp,
+            booking,
+            vessel,
+            container,
+            ets,
+            eta,
+            etaKnipping,
             status,
             statusNote,
             lastUpdated: new Date().toISOString(),
