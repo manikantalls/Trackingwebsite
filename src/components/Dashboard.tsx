@@ -184,9 +184,6 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
     return isNaN(d.getTime()) ? iso : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
   }
 
-  const cwPalette = ['bg-blue-600', 'bg-teal-600', 'bg-rose-600', 'bg-amber-600', 'bg-emerald-600'];
-  const cwColors: Record<string, string> = {};
-  allCWs.forEach((cw, i) => { cwColors[cw] = cwPalette[i % cwPalette.length]; });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -495,9 +492,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                         className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                       >
                         <td className="px-3 py-2 border-r border-gray-50">
-                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-white text-xs font-bold ${cwColors[s.cw] ?? 'bg-gray-500'}`}>
-                            {s.cw}
-                          </span>
+                          <span className="text-gray-700">{s.cw}</span>
                         </td>
                         <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.llsReference}</td>
                         <td className="px-3 py-2 text-gray-700 border-r border-gray-50">{s.supplier}</td>

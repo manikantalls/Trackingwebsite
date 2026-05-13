@@ -27,10 +27,6 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
   const etaDates = shipments.map((s) => s.eta).filter(Boolean).sort();
   const etsDates = shipments.map((s) => s.ets).filter(Boolean).sort();
 
-  const cwPalette = ['bg-blue-600', 'bg-teal-600', 'bg-rose-600', 'bg-amber-600', 'bg-emerald-600'];
-  const allCWs = Array.from(new Set(shipments.map((s) => s.cw))).sort();
-  const cwColors: Record<string, string> = {};
-  allCWs.forEach((cw, i) => { cwColors[cw] = cwPalette[i % cwPalette.length]; });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -117,9 +113,7 @@ export default function ContainerDetail({ container, shipments, onBack, onViewSh
                     className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                   >
                     <td className="px-3 py-2.5 border-r border-gray-50">
-                      <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-white text-xs font-bold ${cwColors[s.cw] ?? 'bg-gray-500'}`}>
-                        {s.cw}
-                      </span>
+                      <span className="text-gray-700">{s.cw}</span>
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 font-medium border-r border-gray-50">{s.llsReference}</td>
                     <td className="px-3 py-2.5 text-gray-700 border-r border-gray-50">{s.supplier}</td>
