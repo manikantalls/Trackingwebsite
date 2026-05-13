@@ -5,7 +5,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { Shipment, ShipmentStatus } from '../types';
-import { fetchShipments, upsertShipment, upsertShipments, deleteShipment } from '../data/store';
+import { fetchShipments, upsertShipment, upsertShipments, deleteShipment, deleteShipments } from '../data/store';
 import { parseExcelFile, exportToExcel } from '../utils/excel';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from './StatusBadge';
@@ -52,6 +52,8 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deletingBulk, setDeletingBulk] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -229,7 +231,35 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
     setDeletingId(id);
     await deleteShipment(id);
     setDeletingId(null);
+    setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     await load();
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected shipment${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setDeletingBulk(true);
+    await deleteShipments(ids);
+    setSelectedIds(new Set());
+    setDeletingBulk(false);
+    await load();
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sorted.length && sorted.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sorted.map((s) => s.id)));
+    }
   }
 
   function fmtDate(iso: string) {
@@ -579,6 +609,29 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
           )
         ) : null}
 
+        {/* Bulk action bar */}
+        {isAdmin && selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-sm">
+            <span className="text-rose-700 font-medium">
+              {selectedIds.size} shipment{selectedIds.size > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={handleBulkDelete}
+              disabled={deletingBulk}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deletingBulk ? 'Deleting…' : 'Delete selected'}
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="ml-auto text-rose-400 hover:text-rose-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Flat table */}
         {!groupByPartNumber && !groupByContainer && (
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -586,6 +639,17 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
               <table className="w-full text-xs whitespace-nowrap">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-gray-50 border-b border-gray-200">
+                    {isAdmin && (
+                      <th className="w-8 px-3 py-2.5 bg-gray-50 border-r border-gray-100" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                          checked={sorted.length > 0 && selectedIds.size === sorted.length}
+                          ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < sorted.length; }}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
+                    )}
                     {[
                       'CW Consolidation','LLS Reference','Supplier','Invoice Spl','Delivery Note',
                       'PO','Part Number','Quantity','Package','Kilo',
@@ -619,13 +683,13 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                 <tbody className="divide-y divide-gray-50">
                   {loadingData ? (
                     <tr>
-                      <td colSpan={isAdmin ? 19 : 18} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 20 : 18} className="px-4 py-12 text-center text-gray-400">
                         Loading shipments…
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isAdmin ? 19 : 18} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 20 : 18} className="px-4 py-12 text-center text-gray-400">
                         No shipments match your filters.
                       </td>
                     </tr>
@@ -634,8 +698,18 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                       <tr
                         key={s.id}
                         onClick={() => onView(s.id)}
-                        className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                        className={`transition-colors cursor-pointer group ${selectedIds.has(s.id) ? 'bg-blue-50' : 'hover:bg-blue-50/40'}`}
                       >
+                        {isAdmin && (
+                          <td className="px-3 py-2 border-r border-gray-50" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-blue-600 cursor-pointer"
+                              checked={selectedIds.has(s.id)}
+                              onChange={() => toggleSelect(s.id)}
+                            />
+                          </td>
+                        )}
                         <td className="px-3 py-2 border-r border-gray-50">
                           <span className="text-gray-700">{s.cw.replace(/^CW/i, '')}</span>
                         </td>
