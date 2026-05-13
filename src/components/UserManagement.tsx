@@ -233,7 +233,7 @@ export default function UserManagement({ onBack }: Props) {
     <div className="min-h-screen bg-gray-100">
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3">
-        <img src="/logo.png" alt="Knipping Logo" className="h-14 w-auto object-contain" />
+        <img src="/logo.png" alt="Knipping Logo" className="h-20 w-auto object-contain" />
         <span className="text-sm font-semibold text-gray-700">User Management</span>
       </div>
 

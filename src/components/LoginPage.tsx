@@ -29,7 +29,7 @@ export default function LoginPage() {
           <div className="px-8 py-10">
             {/* Logo */}
             <div className="flex flex-col items-center mb-8">
-              <img src="/logo.png" alt="Knipping Logo" className="h-24 w-auto object-contain mb-4" />
+              <img src="/logo.png" alt="Knipping Logo" className="h-36 w-auto object-contain mb-4" />
               <h1 className="text-2xl font-bold text-gray-900">Knipping- LLS Dashboard</h1>
               <p className="text-sm text-gray-500 mt-1">Shipment Tracking Portal</p>
             </div>
