@@ -286,7 +286,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
             <input
               type="text"
-              placeholder="Search LLS ref, invoice, delivery note, PO, booking, container…"
+              placeholder="Search parameters"
               value={query}
               onChange={(e) => { setQuery(e.target.value); setSuggestionIndex(-1); }}
               onFocus={() => setSearchFocused(true)}
