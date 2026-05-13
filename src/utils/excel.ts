@@ -41,7 +41,7 @@ function col(row: Record<string, unknown>, ...keys: string[]): unknown {
 // Find the header row index by looking for a row containing known column names
 function findHeaderRow(rawRows: unknown[][]): number {
   const knownHeaders = [
-    'invoice', 'supplier', 'lls reference', 'vessel', 'container', 'status',
+    'invoice', 'invoice spl', 'supplier', 'lls reference', 'vessel', 'container', 'status',
     'cw', 'cw consolidation', 'booking', 'part number', 'delivery note',
   ];
   for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
@@ -80,7 +80,7 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
           const cw           = String(col(row, 'CW Consolidation', 'CW', 'cw consolidation', 'cw', 'KW', 'kw'));
           const llsRef       = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
           const supplier     = String(col(row, 'Supplier', 'supplier'));
-          const invoice      = String(col(row, 'Invoice', 'invoice', 'Rechnung', 'rechnung'));
+          const invoice      = String(col(row, 'Invoice Spl', 'Invoice', 'invoice spl', 'invoice', 'Rechnung', 'rechnung'));
           const deliveryNote = String(col(row, 'Delivery Note', 'DeliveryNote', 'deliveryNote', 'delivery_note', 'Lieferschein'));
           const po           = String(col(row, 'PO', 'po', 'Purchase Order', 'purchase_order'));
           const partNumber   = String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer'));
