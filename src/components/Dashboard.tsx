@@ -539,9 +539,9 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
         {/* Flat table */}
         {!groupByPartNumber && !groupByContainer && (
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[calc(100vh-220px)] overflow-y-auto">
               <table className="w-full text-xs whitespace-nowrap">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-gray-50 border-b border-gray-200">
                     {[
                       'CW Consolidation','LLS Reference','Supplier','Invoice Spl','Delivery Note',
@@ -550,7 +550,7 @@ export default function Dashboard({ onView, onViewContainer, onUserManagement }:
                       'ETS','ETA','ETA Knipping','Status',
                       ...(isAdmin ? [''] : []),
                     ].map((h, i) => (
-                      <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
+                      <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0 bg-gray-50">
                         {h}
                       </th>
                     ))}
