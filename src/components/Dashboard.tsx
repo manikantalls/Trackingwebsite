@@ -740,7 +740,7 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
                         <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
-                        <td className="px-3 py-2 text-blue-700 font-semibold border-r border-gray-50">{ddpLeadTime(s.eta, s.customClearance ?? 10)}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{ddpLeadTime(s.eta, s.customClearance ?? 10)}</td>
                         <td className="px-3 py-2 border-r border-gray-50">
                           <StatusBadge status={s.status} note={s.statusNote} />
                         </td>
