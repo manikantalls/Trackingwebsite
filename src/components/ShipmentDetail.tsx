@@ -59,7 +59,7 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
     <div className="min-h-screen bg-gray-100">
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3">
-        <img src="/logo.png" alt="Knipping Logo" className="h-20 w-auto object-contain" />
+        <img src="/logo.png" alt="Knipping Logo" className="h-28 w-auto object-contain" />
         <span className="text-2xl font-bold text-gray-900">Knipping LLS Mexico Consol Dashboard</span>
       </div>
 
