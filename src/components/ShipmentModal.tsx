@@ -154,7 +154,7 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
                 {isAdmin && (
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Custom Clearance (days)
+                      DDP Lead Time (Days)
                       <span className="ml-1.5 text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase tracking-wide">Admin</span>
                     </label>
                     <input
@@ -164,7 +164,7 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
                       onChange={(e) => set('customClearance', Number(e.target.value))}
                       className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/30"
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">DDP Lead Time = ETA + this many days</p>
+                    <p className="text-[10px] text-gray-400 mt-1">DDP ETA KN-MX = ETA + this many days</p>
                   </div>
                 )}
               </div>

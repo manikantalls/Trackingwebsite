@@ -665,8 +665,8 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                       'CW Consolidation','LLS Reference','Supplier','Invoice Spl','Delivery Note',
                       'PO','Part Number','Quantity','Package','Kilo',
                       'Pick up','Booking','Vessel','Container',
-                      'ETS','ETA','ETA Knipping','DDP Lead Time','Status',
-                      ...(isAdmin ? ['Custom Clearance (days)', ''] : []),
+                      'ETS','ETA','ETA Knipping','DDP ETA KN-MX','Status',
+                      ...(isAdmin ? ['DDP Lead Time (Days)', ''] : []),
                     ].map((h, i) => {
                       const sortable = !!COL_KEYS[h];
                       const active = sortCol === h;

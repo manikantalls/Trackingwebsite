@@ -166,7 +166,7 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETS" value={fmtDate(s.ets)} />
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETA" value={fmtDate(s.eta)} />
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETA Knipping" value={s.etaKnipping} />
-              <Field icon={<Calendar className="w-3.5 h-3.5" />} label="DDP Lead Time" value={(() => {
+              <Field icon={<Calendar className="w-3.5 h-3.5" />} label="DDP ETA KN-MX" value={(() => {
                 if (!s.eta) return '—';
                 const d = new Date(s.eta);
                 if (isNaN(d.getTime())) return '—';
