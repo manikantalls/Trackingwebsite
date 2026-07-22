@@ -113,6 +113,7 @@ Deno.serve(async (req: Request) => {
 
       const booking = cleanStr(field(raw, "booking"));
       const vessel = cleanStr(field(raw, "vessel"));
+      const container = cleanStr(field(raw, "container"));
       const etsRaw = field(raw, "ets");
       const etaRaw = field(raw, "eta");
       const ets = etsRaw ? parseDate(etsRaw) : null;
@@ -130,6 +131,7 @@ Deno.serve(async (req: Request) => {
       const updateData: Record<string, unknown> = {};
       if (booking) updateData.booking = booking;
       if (vessel) updateData.vessel = vessel;
+      if (container) updateData.container = container;
       if (ets) updateData.ets = ets;
       if (eta) updateData.eta = eta;
 
@@ -190,6 +192,15 @@ Deno.serve(async (req: Request) => {
             .update({ eta, last_updated: now }, { count: "exact" })
             .in("cw", cwMatches)
             .is("eta", null);
+          if (e) itemError = e.message;
+          touched = Math.max(touched, count ?? 0);
+        }
+        if (!itemError && container) {
+          const { error: e, count } = await supabase
+            .from("shipments")
+            .update({ container, last_updated: now }, { count: "exact" })
+            .in("cw", cwMatches)
+            .eq("container", "");
           if (e) itemError = e.message;
           touched = Math.max(touched, count ?? 0);
         }
