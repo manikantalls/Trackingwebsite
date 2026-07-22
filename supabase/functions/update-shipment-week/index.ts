@@ -140,7 +140,8 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Match both "CW30" and bare "30" formats stored in the database
+      // Match both "CW30" and bare "30" formats stored in the database.
+      // Also supports sub-week variants like "CW35/1" / "35/1".
       const cwMatches = [cwLabel, cwNum];
 
       if (subjectRaw === "update") {
