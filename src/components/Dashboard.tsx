@@ -2,9 +2,9 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, Filter, Upload, Download, Package, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, Users, LogOut, Shield, User, RefreshCw, X, Layers,
-  ArrowUpDown, ArrowUp, ArrowDown,
+  ArrowUpDown, ArrowUp, ArrowDown, Bell,
 } from 'lucide-react';
-import { Shipment, ShipmentStatus } from '../types';
+import { Shipment, ShipmentStatus, transitTimeDays } from '../types';
 import { fetchShipments, upsertShipment, upsertShipments, deleteShipment, deleteShipments } from '../data/store';
 import { parseExcelFile, exportToExcel } from '../utils/excel';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,7 @@ interface Props {
   onViewContainer: (container: string) => void;
   onViewPartNumber: (partNumber: string) => void;
   onUserManagement: () => void;
+  onAlerts: () => void;
 }
 
 type StatusFilter = 'ALL' | ShipmentStatus;
@@ -29,7 +30,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'DELIVERED', label: 'Delivered' },
 ];
 
-export default function Dashboard({ onView, onViewContainer, onViewPartNumber, onUserManagement }: Props) {
+export default function Dashboard({ onView, onViewContainer, onViewPartNumber, onUserManagement, onAlerts }: Props) {
   const { profile, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
@@ -44,6 +45,7 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
   const [vesselOpen, setVesselOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [importWarning, setImportWarning] = useState('');
   const [editTarget, setEditTarget] = useState<Shipment | null | 'new'>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -152,7 +154,7 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
     'Container': 'container',
     'ETS': 'ets',
     'ETA': 'eta',
-    'ETA Knipping': 'etaKnipping',
+    'Invoice LLS': 'llsInvoice',
     'Status': 'status',
   };
 
@@ -209,12 +211,23 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
     if (!file) return;
     setImporting(true);
     setImportError('');
+    setImportWarning('');
     try {
       const imported = await parseExcelFile(file);
+      const warn = (imported as typeof imported & { duplicateWarning?: string }).duplicateWarning;
       await upsertShipments(imported);
       await load();
-    } catch {
-      setImportError('Failed to parse file. Check column headers and try again.');
+      if (warn) setImportWarning(warn);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : typeof err === 'string'
+          ? err
+          : 'Failed to parse file. Check column headers and try again.';
+      setImportError(msg || 'Failed to parse file. Check column headers and try again.');
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -232,8 +245,8 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
     setDeletingId(id);
     await deleteShipment(id);
     setDeletingId(null);
+    setShipments((prev) => prev.filter((s) => s.id !== id));
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-    await load();
   }
 
   async function handleBulkDelete() {
@@ -241,10 +254,17 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
     if (ids.length === 0) return;
     if (!window.confirm(`Delete ${ids.length} selected shipment${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
     setDeletingBulk(true);
-    await deleteShipments(ids);
-    setSelectedIds(new Set());
-    setDeletingBulk(false);
-    await load();
+    try {
+      await deleteShipments(ids);
+      const idSet = new Set(ids);
+      setShipments((prev) => prev.filter((s) => !idSet.has(s.id)));
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+      alert('Delete failed. Please try again.');
+    } finally {
+      setDeletingBulk(false);
+    }
   }
 
   function toggleSelect(id: string) {
@@ -277,6 +297,12 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
     return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
   }
 
+  function ddpDeviation(customClearance: number | undefined): string {
+    const diff = (customClearance ?? 10) - 10;
+    if (diff === 0) return '0';
+    return diff > 0 ? `+${diff}` : `${diff}`;
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,6 +330,16 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
               </p>
             </div>
           </div>
+
+          {isAdmin && (
+            <button
+              onClick={onAlerts}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              Alerts
+            </button>
+          )}
 
           {isAdmin && (
             <button
@@ -357,8 +393,17 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
 
       <main className="px-6 py-5">
         {importError && (
-          <div className="mb-4 px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-sm">
+          <div className="mb-4 px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-sm whitespace-pre-line">
             {importError}
+          </div>
+        )}
+
+        {importWarning && (
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm flex items-start justify-between gap-3">
+            <span>{importWarning}</span>
+            <button onClick={() => setImportWarning('')} className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors mt-0.5">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 
@@ -665,8 +710,10 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                       'CW Consolidation','LLS Reference','Supplier','Invoice Spl','Delivery Note',
                       'PO','Part Number','Quantity','Package','Kilo',
                       'Pick up','Booking','Vessel','Container',
-                      'ETS','ETA','ETA Knipping','DDP ETA KN-MX','Status',
+                      'ETS','ETA','Transit Time (Days)','DDP ETA KN-MX','Requested DDP ETA KN-MX','DDP ETA Deviation (Days)','Status',
                       ...(isAdmin ? ['DDP Lead Time (Days)', ''] : []),
+                      'Remarks',
+                      'Invoice LLS',
                     ].map((h, i) => {
                       const sortable = !!COL_KEYS[h];
                       const active = sortCol === h;
@@ -694,13 +741,13 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                 <tbody className="divide-y divide-gray-50">
                   {loadingData ? (
                     <tr>
-                      <td colSpan={isAdmin ? 22 : 19} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 24 : 21} className="px-4 py-12 text-center text-gray-400">
                         Loading shipments…
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isAdmin ? 22 : 19} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 24 : 21} className="px-4 py-12 text-center text-gray-400">
                         No shipments match your filters.
                       </td>
                     </tr>
@@ -739,8 +786,10 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                         <td className="px-3 py-2 text-gray-700 font-medium border-r border-gray-50">{s.container}</td>
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
-                        <td className="px-3 py-2 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
+                        <td className={`px-3 py-2 border-r border-gray-50 text-center font-medium ${(() => { const tt = transitTimeDays(s.pickUp, s.eta); return tt !== null && tt > 42 ? 'text-red-600 bg-red-50' : 'text-gray-600'; })()}`}>{(() => { const tt = transitTimeDays(s.pickUp, s.eta); return tt === null ? '—' : tt; })()}</td>
                         <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{ddpLeadTime(s.eta, s.customClearance ?? 10)}</td>
+                        <td className="px-3 py-2 text-gray-600 border-r border-gray-50">{s.requestedDdpEta ? fmtDate(s.requestedDdpEta) : '—'}</td>
+                        <td className={`px-3 py-2 border-r border-gray-50 text-center font-medium ${(() => { const d = (s.customClearance ?? 10) - 10; return d > 5 ? 'text-red-600' : d > 0 ? 'text-orange-500' : 'text-emerald-600'; })()}`}>{ddpDeviation(s.customClearance)}</td>
                         <td className="px-3 py-2 border-r border-gray-50">
                           <StatusBadge status={s.status} note={s.statusNote} />
                         </td>
@@ -768,6 +817,8 @@ export default function Dashboard({ onView, onViewContainer, onViewPartNumber, o
                             </div>
                           </td>
                         )}
+                        <td className="px-3 py-2 text-gray-600 border-l border-gray-100 max-w-[240px] truncate" title={s.remarks || ''}>{s.remarks || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600 border-l border-gray-100">{s.llsInvoice || '—'}</td>
                       </tr>
                     ))
                   )}

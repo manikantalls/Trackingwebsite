@@ -23,9 +23,21 @@ export interface Shipment {
   container: string;      // container number, e.g. "MSNU9565311"
   ets: string;            // Estimated Time of Shipment (ISO date)
   eta: string;            // Estimated Time of Arrival (ISO date)
-  etaKnipping: string;    // e.g. "tba" or an ISO date
+  llsInvoice: string;     // LLS Invoice Number
+  requestedDdpEta: string; // Requested DDP ETA KN-MX (from Excel, ISO date string)
   status: ShipmentStatus;
   statusNote: string;     // display text, e.g. "departed 28.04"
   lastUpdated: string;    // ISO date
   customClearance: number; // days for customs clearance, default 10; used to compute DDP Lead Time = ETA + customClearance
+  remarks: string;        // free-text notes per shipment
+  alert_sent_at?: string | null; // timestamp of last automatic delay alert, null if not yet sent
+}
+
+// Transit Time (days) = ETA - Pickup date. Returns null when either date is missing or invalid.
+export function transitTimeDays(pickUp: string, eta: string): number | null {
+  if (!pickUp || !eta) return null;
+  const p = new Date(pickUp);
+  const e = new Date(eta);
+  if (isNaN(p.getTime()) || isNaN(e.getTime())) return null;
+  return Math.round((e.getTime() - p.getTime()) / 86400000);
 }

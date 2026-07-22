@@ -26,13 +26,16 @@ function parseDate(val: unknown): string {
   return isNaN(d.getTime()) ? '' : d.toISOString();
 }
 
-// Case-insensitive, trimmed key lookup supporting multiple aliases
+// Case-insensitive, trimmed key lookup supporting multiple aliases.
+// Normalises spaces, underscores, and hyphens so "Invoice Spl", "Invoice_Spl",
+// "Invoice-Spl" all match. Also tries both word orders ("Spl Invoice" ↔ "Invoice Spl").
 function col(row: Record<string, unknown>, ...keys: string[]): unknown {
+  const norm = (s: string) => s.toLowerCase().trim().replace(/[\s_-]+/g, '');
   const normalized = Object.fromEntries(
-    Object.entries(row).map(([k, v]) => [k.toLowerCase().trim(), v])
+    Object.entries(row).map(([k, v]) => [norm(k), v])
   );
   for (const key of keys) {
-    const val = normalized[key.toLowerCase().trim()];
+    const val = normalized[norm(key)];
     if (val !== undefined && val !== null && val !== '') return val;
   }
   return '';
@@ -41,7 +44,7 @@ function col(row: Record<string, unknown>, ...keys: string[]): unknown {
 // Find the header row index by looking for a row containing known column names
 function findHeaderRow(rawRows: unknown[][]): number {
   const knownHeaders = [
-    'invoice', 'invoice spl', 'supplier', 'lls reference', 'vessel', 'container', 'status',
+    'invoice', 'invoice spl', 'spl invoice', 'supplier', 'lls reference', 'vessel', 'container', 'status',
     'cw', 'cw consolidation', 'booking', 'part number', 'delivery note',
   ];
   for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
@@ -54,8 +57,15 @@ function findHeaderRow(rawRows: unknown[][]): number {
   return 0;
 }
 
+const MAX_FILE_SIZE_MB = 10;
+const MAX_ROWS = 5000;
+
 export function parseExcelFile(file: File): Promise<Shipment[]> {
   return new Promise((resolve, reject) => {
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      return reject(new Error(`File is too large. Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`));
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -68,10 +78,46 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
         const headerIdx = findHeaderRow(rawRows);
 
         // Re-parse with the correct header row
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+        const allRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
           defval: '',
           range: headerIdx,
         });
+
+        if (allRows.length > MAX_ROWS) {
+          return reject(new Error(`Too many rows. Maximum allowed is ${MAX_ROWS} rows per import.`));
+        }
+
+        if (allRows.length === 0) {
+          return reject(new Error('The file appears to be empty — no data rows were found after the header.'));
+        }
+
+        // Validate that at least some known columns were found
+        const knownHeaders = ['invoice', 'invoice spl', 'spl invoice', 'supplier', 'lls reference', 'vessel', 'container', 'status', 'cw', 'booking', 'part number', 'delivery note'];
+        const detectedCols = Object.keys(allRows[0] ?? {}).map((k) => k.toLowerCase().trim());
+        const matchedCols = knownHeaders.filter((h) => detectedCols.some((c) => c === h));
+        if (matchedCols.length < 2) {
+          const shown = detectedCols.slice(0, 10).join('", "');
+          return reject(new Error(
+            `Header row not recognised. Expected columns like "Invoice", "Supplier", "LLS Reference", "Vessel", "Container", "Status", "CW", etc.\n\nColumns found in your file: "${shown || 'none'}"`
+          ));
+        }
+
+        const rows = allRows;
+
+        // Count truly duplicate rows (same computed ID before the |dup suffix)
+        const rawIdCounts = new Map<string, number>();
+        rows.forEach((row) => {
+          const cw      = String(col(row, 'CW Consolidation', 'CW', 'cw consolidation', 'cw', 'KW', 'kw'));
+          const llsRef  = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
+          const invoice = String(col(row, 'Invoice Spl', 'Spl Invoice', 'Invoice', 'invoice spl', 'spl invoice', 'invoice', 'Rechnung', 'rechnung'));
+          const pn      = String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer'));
+          const explicitId = String(col(row, 'ID', 'id') || '');
+          const key = explicitId || [cw, llsRef, invoice, pn].join('|').trim();
+          rawIdCounts.set(key, (rawIdCounts.get(key) ?? 0) + 1);
+        });
+        const dupCount = Array.from(rawIdCounts.values()).filter((c) => c > 1).reduce((sum, c) => sum + (c - 1), 0);
+
+        const seenIds = new Map<string, number>();
 
         const shipments: Shipment[] = rows.map((row) => {
           const rawStatus = String(col(row, 'Status', 'status') ?? '');
@@ -80,7 +126,7 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
           const cw           = String(col(row, 'CW Consolidation', 'CW', 'cw consolidation', 'cw', 'KW', 'kw'));
           const llsRef       = String(col(row, 'LLS Reference', 'LLS-Reference', 'llsReference', 'lls_reference'));
           const supplier     = String(col(row, 'Supplier', 'supplier'));
-          const invoice      = String(col(row, 'Invoice Spl', 'Invoice', 'invoice spl', 'invoice', 'Rechnung', 'rechnung'));
+          const invoice      = String(col(row, 'Spl Invoice', 'Invoice Spl', 'Invoice', 'invoice spl', 'spl invoice', 'invoice', 'Rechnung', 'rechnung'));
           const deliveryNote = String(col(row, 'Delivery Note', 'DeliveryNote', 'deliveryNote', 'delivery_note', 'Lieferschein'));
           const po           = String(col(row, 'PO', 'po', 'Purchase Order', 'purchase_order'));
           const partNumber   = String(col(row, 'Part Number', 'PartNumber', 'partNumber', 'part_number', 'Teilenummer'));
@@ -93,15 +139,20 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
           const container    = String(col(row, 'Container', 'container'));
           const ets          = parseDate(col(row, 'ETS', 'ets'));
           const eta          = parseDate(col(row, 'ETA', 'eta'));
-          const etaKnipping  = String(col(row, 'ETA Knipping', 'etaKnipping', 'eta_knipping'));
+          const llsInvoice        = String(col(row, 'Invoice LLS', 'LLS Invoice Number', 'LLS Invoice', 'lls_invoice', 'llsInvoice'));
+          const requestedDdpEta   = parseDate(col(row, 'Requested DDP ETA KN-MX', 'Requested DDP ETA', 'requested_ddp_eta', 'requestedDdpEta'));
+          const remarks          = String(col(row, 'Remarks', 'remarks', 'Notes', 'notes', 'Bemerkung', 'bemerkung'));
 
           // Stable ID derived from all content columns — identical rows always get the same ID,
           // so re-importing the same sheet upserts instead of inserting duplicates.
           const explicitId = String(col(row, 'ID', 'id') || '');
-          const stableId = explicitId || [
+          const baseId = explicitId || [
             cw, llsRef, supplier, invoice, deliveryNote, po, partNumber,
-            quantity, pkg, String(kilo), pickUp, booking, vessel, container, ets, eta, etaKnipping,
+            quantity, pkg, String(kilo), booking, llsInvoice,
           ].join('|').replace(/\s+/g, ' ').trim();
+          const count = seenIds.get(baseId) ?? 0;
+          seenIds.set(baseId, count + 1);
+          const stableId = count === 0 ? baseId : `${baseId}|dup${count}`;
 
           return {
             id: stableId,
@@ -121,14 +172,22 @@ export function parseExcelFile(file: File): Promise<Shipment[]> {
             container,
             ets,
             eta,
-            etaKnipping,
+            llsInvoice,
+            requestedDdpEta,
+            remarks,
             status,
             statusNote,
             lastUpdated: new Date().toISOString(),
+            customClearance: 10,
           };
         });
 
-        resolve(shipments);
+        // Attach duplicate warning to the array so the caller can surface it
+        const result = shipments as Shipment[] & { duplicateWarning?: string };
+        if (dupCount > 0) {
+          result.duplicateWarning = `${dupCount} duplicate row${dupCount > 1 ? 's' : ''} detected in the file — they were imported with a suffix to avoid overwriting each other.`;
+        }
+        resolve(result);
       } catch (err) {
         reject(err);
       }
@@ -157,15 +216,18 @@ export function exportToExcel(shipments: Shipment[]): void {
     Container: s.container,
     ETS: s.ets ? new Date(s.ets).toLocaleDateString('de-DE') : '',
     ETA: s.eta ? new Date(s.eta).toLocaleDateString('de-DE') : '',
-    'ETA Knipping': s.etaKnipping,
-    'DDP Lead Time': (() => {
+    'DDP ETA KN-MX': (() => {
       if (!s.eta) return '';
       const d = new Date(s.eta);
       if (isNaN(d.getTime())) return '';
       d.setDate(d.getDate() + (s.customClearance ?? 10));
       return d.toLocaleDateString('de-DE');
     })(),
+    'Requested DDP ETA KN-MX': s.requestedDdpEta ? new Date(s.requestedDdpEta).toLocaleDateString('de-DE') : '',
+    'DDP ETA Deviation (Days)': (s.customClearance ?? 10) - 10,
     Status: s.statusNote || s.status,
+    'Invoice LLS': s.llsInvoice,
+    Remarks: s.remarks || '',
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);

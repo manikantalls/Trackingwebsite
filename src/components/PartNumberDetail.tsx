@@ -1,5 +1,5 @@
 import { ArrowLeft, Package, Weight, Hash, Layers, Ship } from 'lucide-react';
-import { Shipment } from '../types';
+import { Shipment, transitTimeDays } from '../types';
 import StatusBadge from './StatusBadge';
 
 interface Props {
@@ -21,6 +21,12 @@ function ddpLeadTime(eta: string, days: number): string {
   if (isNaN(d.getTime())) return '—';
   d.setDate(d.getDate() + (days ?? 10));
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+}
+
+function ddpDeviation(customClearance: number | undefined): string {
+  const diff = (customClearance ?? 10) - 10;
+  if (diff === 0) return '0';
+  return diff > 0 ? `+${diff}` : `${diff}`;
 }
 
 export default function PartNumberDetail({ partNumber, shipments, onBack, onViewShipment }: Props) {
@@ -86,7 +92,7 @@ export default function PartNumberDetail({ partNumber, shipments, onBack, onView
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice Spl', 'Delivery Note', 'PO', 'Quantity', 'Package', 'Weight (kg)', 'Container', 'Pick Up', 'ETS', 'ETA', 'ETA Knipping', 'DDP ETA KN-MX', 'Status'].map((h, i) => (
+                  {['CW Consolidation', 'LLS Reference', 'Supplier', 'Invoice Spl', 'Delivery Note', 'PO', 'Quantity', 'Package', 'Weight (kg)', 'Container', 'Pick Up', 'ETS', 'ETA', 'Transit Time (Days)', 'DDP ETA KN-MX', 'Requested DDP ETA KN-MX', 'DDP ETA Deviation (Days)', 'Status', 'Remarks', 'Invoice LLS'].map((h, i) => (
                     <th key={i} className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 tracking-wide border-r border-gray-100 last:border-r-0">
                       {h}
                     </th>
@@ -115,11 +121,15 @@ export default function PartNumberDetail({ partNumber, shipments, onBack, onView
                     <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{fmtDate(s.pickUp)}</td>
                     <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{fmtDate(s.ets)}</td>
                     <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{fmtDate(s.eta)}</td>
-                    <td className="px-3 py-2.5 text-gray-500 border-r border-gray-50">{s.etaKnipping || '—'}</td>
+                    <td className={`px-3 py-2.5 border-r border-gray-50 text-center font-medium ${(() => { const tt = transitTimeDays(s.pickUp, s.eta); return tt !== null && tt > 42 ? 'text-red-600 bg-red-50' : 'text-gray-600'; })()}`}>{(() => { const tt = transitTimeDays(s.pickUp, s.eta); return tt === null ? '—' : tt; })()}</td>
                     <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{ddpLeadTime(s.eta, s.customClearance ?? 10)}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50">{s.requestedDdpEta ? fmtDate(s.requestedDdpEta) : '—'}</td>
+                    <td className={`px-3 py-2.5 border-r border-gray-50 text-center font-medium ${(() => { const d = (s.customClearance ?? 10) - 10; return d > 5 ? 'text-red-600' : d > 0 ? 'text-orange-500' : 'text-emerald-600'; })()}`}>{ddpDeviation(s.customClearance)}</td>
+                    <td className="px-3 py-2.5 border-r border-gray-50">
                       <StatusBadge status={s.status} note={s.statusNote} />
                     </td>
+                    <td className="px-3 py-2.5 text-gray-600 border-r border-gray-50 max-w-[240px] truncate" title={s.remarks || ''}>{s.remarks || '—'}</td>
+                    <td className="px-3 py-2.5 text-gray-600">{s.llsInvoice || '—'}</td>
                   </tr>
                 ))}
               </tbody>

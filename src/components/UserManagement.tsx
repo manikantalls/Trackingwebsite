@@ -82,10 +82,20 @@ export default function UserManagement({ onBack }: Props) {
     return json;
   }
 
+  function validatePassword(pw: string): string | null {
+    if (pw.length < 8) return 'Password must be at least 8 characters.';
+    if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter.';
+    if (!/[a-z]/.test(pw)) return 'Password must contain at least one lowercase letter.';
+    if (!/[0-9]/.test(pw)) return 'Password must contain at least one number.';
+    return null;
+  }
+
   async function handleAddUser(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setFormError('');
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) { setFormError(pwErr); setSubmitting(false); return; }
     try {
       await callCreateUser({ email: newEmail, password: newPassword, full_name: newName, role: newRole });
       setNewEmail('');
@@ -140,7 +150,8 @@ export default function UserManagement({ onBack }: Props) {
   async function handleResetPassword(e: FormEvent) {
     e.preventDefault();
     if (!resetTarget) return;
-    if (resetPw.length < 6) { setResetError('Password must be at least 6 characters.'); return; }
+    const pwErr = validatePassword(resetPw);
+    if (pwErr) { setResetError(pwErr); return; }
     setResetting(true);
     setResetError('');
     try {
@@ -378,7 +389,7 @@ export default function UserManagement({ onBack }: Props) {
                       minLength={6}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Min. 6 characters"
+                      placeholder="Min. 8 characters"
                       className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -448,7 +459,7 @@ export default function UserManagement({ onBack }: Props) {
                       minLength={6}
                       value={resetPw}
                       onChange={(e) => setResetPw(e.target.value)}
-                      placeholder="Min. 6 characters"
+                      placeholder="Min. 8 characters"
                       className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button type="button" onClick={() => setShowResetPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">

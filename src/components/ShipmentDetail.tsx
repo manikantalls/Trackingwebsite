@@ -1,9 +1,9 @@
 import {
   ArrowLeft, Package, Ship, Container, Calendar, MapPin, Hash,
   FileText, ShoppingCart, Weight, Clock, Anchor, CheckCircle2,
-  TrendingUp,
+  TrendingUp, MessageSquare,
 } from 'lucide-react';
-import { Shipment, ShipmentStatus } from '../types';
+import { Shipment, ShipmentStatus, transitTimeDays } from '../types';
 import StatusBadge from './StatusBadge';
 import DocumentsSection from './DocumentsSection';
 
@@ -37,14 +37,14 @@ function fmtUpdated(iso: string) {
   });
 }
 
-function Field({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function Field({ icon, label, value, valueClassName }: { icon: React.ReactNode; label: string; value: React.ReactNode; valueClassName?: string }) {
   return (
     <div>
       <label className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
         {icon}
         {label}
       </label>
-      <div className="text-sm text-gray-800 font-medium">{value || '—'}</div>
+      <div className={`text-sm text-gray-800 font-medium ${valueClassName || ''}`}>{value || '—'}</div>
     </div>
   );
 }
@@ -165,7 +165,7 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETS" value={fmtDate(s.ets)} />
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETA" value={fmtDate(s.eta)} />
-              <Field icon={<Calendar className="w-3.5 h-3.5" />} label="ETA Knipping" value={s.etaKnipping} />
+              <Field icon={<Clock className="w-3.5 h-3.5" />} label="Transit Time (Days)" valueClassName={(() => { const tt = transitTimeDays(s.pickUp, s.eta); return tt !== null && tt > 42 ? 'text-red-600' : ''; })()} value={(() => { const tt = transitTimeDays(s.pickUp, s.eta); return tt === null ? '—' : `${tt} days`; })()} />
               <Field icon={<Calendar className="w-3.5 h-3.5" />} label="DDP ETA KN-MX" value={(() => {
                 if (!s.eta) return '—';
                 const d = new Date(s.eta);
@@ -173,6 +173,16 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
                 d.setDate(d.getDate() + (s.customClearance ?? 10));
                 return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
               })()} />
+              <Field icon={<Calendar className="w-3.5 h-3.5" />} label="Requested DDP ETA KN-MX" value={s.requestedDdpEta ? fmtDate(s.requestedDdpEta) : '—'} />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Field icon={<Hash className="w-3.5 h-3.5" />} label="DDP ETA Deviation (Days)" value={(() => {
+                const diff = (s.customClearance ?? 10) - 10;
+                if (diff > 5) return <span className="text-red-600 font-semibold">+{diff}</span>;
+                if (diff > 0) return <span className="text-orange-500 font-semibold">+{diff}</span>;
+                return <span className="text-emerald-600 font-semibold">{diff === 0 ? '0' : diff}</span>;
+              })()} />
+              <Field icon={<Hash className="w-3.5 h-3.5" />} label="Invoice LLS" value={s.llsInvoice} />
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
@@ -187,6 +197,15 @@ export default function ShipmentDetail({ shipment: s, onBack }: Props) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Remarks */}
+        <div className="bg-white border border-gray-200 rounded-2xl px-6 py-6 shadow-sm space-y-3">
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+            <MessageSquare className="w-4 h-4 text-gray-400" />
+            Remarks
+          </h3>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{s.remarks ? s.remarks : <span className="text-gray-400">No remarks added.</span>}</p>
         </div>
 
         {/* Documents for this shipment */}

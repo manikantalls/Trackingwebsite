@@ -6,6 +6,7 @@ import ShipmentDetail from './components/ShipmentDetail';
 import ContainerDetail from './components/ContainerDetail';
 import PartNumberDetail from './components/PartNumberDetail';
 import UserManagement from './components/UserManagement';
+import AlertSettings from './components/AlertSettings';
 import ForceResetPassword from './components/ForceResetPassword';
 import { fetchShipments } from './data/store';
 import { Shipment } from './types';
@@ -15,7 +16,8 @@ type View =
   | { page: 'detail'; id: string }
   | { page: 'container'; container: string }
   | { page: 'partNumber'; partNumber: string }
-  | { page: 'users' };
+  | { page: 'users' }
+  | { page: 'alerts' };
 
 function AppInner() {
   const { session, profile, loading } = useAuth();
@@ -96,12 +98,17 @@ function AppInner() {
     return <UserManagement onBack={() => setView({ page: 'dashboard' })} />;
   }
 
+  if (view.page === 'alerts') {
+    return <AlertSettings onBack={() => setView({ page: 'dashboard' })} />;
+  }
+
   return (
     <Dashboard
       onView={handleView}
       onViewContainer={handleViewContainer}
       onViewPartNumber={handleViewPartNumber}
       onUserManagement={() => setView({ page: 'users' })}
+      onAlerts={() => setView({ page: 'alerts' })}
     />
   );
 }

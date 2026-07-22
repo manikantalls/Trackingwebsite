@@ -34,17 +34,24 @@ const BLANK: Omit<Shipment, 'id'> = {
   container: '',
   ets: '',
   eta: '',
-  etaKnipping: 'tba',
+  llsInvoice: '',
   status: 'AT_DEPARTURE_PORT',
   statusNote: 'at departure port',
   lastUpdated: new Date().toISOString(),
   customClearance: 10,
+  remarks: '',
+  requestedDdpEta: '',
 };
 
 function toLocalDate(iso: string) {
   if (!iso) return '';
   try {
-    return new Date(iso).toISOString().split('T')[0];
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   } catch {
     return '';
   }
@@ -52,8 +59,31 @@ function toLocalDate(iso: string) {
 
 function fromLocalDate(d: string) {
   if (!d) return '';
-  return new Date(d).toISOString();
+  const date = new Date(d + 'T00:00:00');
+  return isNaN(date.getTime()) ? '' : date.toISOString();
 }
+
+interface FieldProps {
+  label: string;
+  name?: string;
+  type?: string;
+  required?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+}
+
+const Field = ({ label, type = 'text', required = false, value, onChange }: FieldProps) => (
+  <div>
+    <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+    <input
+      type={type}
+      required={required}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
+  </div>
+);
 
 export default function ShipmentModal({ initial, onSave, onClose }: Props) {
   const { profile } = useAuth();
@@ -73,29 +103,15 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
     onSave({ id, ...form, lastUpdated: new Date().toISOString() });
   }
 
-  const Field = ({
-    label, name, type = 'text', required = false,
-  }: { label: string; name: keyof typeof form; type?: string; required?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      <input
-        type={type}
-        required={required}
-        value={
-          (name === 'ets' || name === 'eta' || name === 'pickUp')
-            ? toLocalDate(String(form[name] ?? ''))
-            : String(form[name] ?? '')
-        }
-        onChange={(e) => {
-          const v = (name === 'ets' || name === 'eta' || name === 'pickUp')
-            ? fromLocalDate(e.target.value)
-            : e.target.value;
-          set(name, v as never);
-        }}
-        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div>
-  );
+  const dateField = (key: 'ets' | 'eta' | 'pickUp') => ({
+    value: toLocalDate(String(form[key] ?? '')),
+    onChange: (v: string) => set(key, fromLocalDate(v) as never),
+  });
+
+  const textField = (key: keyof typeof form) => ({
+    value: String(form[key] ?? ''),
+    onChange: (v: string) => set(key, v as never),
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-6">
@@ -118,22 +134,22 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
             <section>
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Order Information</h4>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Field label="CW" name="cw" required />
-                <Field label="LLS Reference" name="llsReference" />
-                <Field label="Supplier" name="supplier" required />
-                <Field label="Invoice" name="invoice" />
-                <Field label="Delivery Note" name="deliveryNote" />
-                <Field label="PO" name="po" />
-                <Field label="Part Number" name="partNumber" required />
-                <Field label="Quantity" name="quantity" />
-                <Field label="Package" name="package" />
+                <Field label="CW" name="cw" required {...textField('cw')} />
+                <Field label="LLS Reference" name="llsReference" {...textField('llsReference')} />
+                <Field label="Supplier" name="supplier" required {...textField('supplier')} />
+                <Field label="Invoice" name="invoice" {...textField('invoice')} />
+                <Field label="Delivery Note" name="deliveryNote" {...textField('deliveryNote')} />
+                <Field label="PO" name="po" {...textField('po')} />
+                <Field label="Part Number" name="partNumber" required {...textField('partNumber')} />
+                <Field label="Quantity" name="quantity" {...textField('quantity')} />
+                <Field label="Package" name="package" {...textField('package')} />
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Kilo</label>
                   <input
                     type="number"
                     step="0.01"
                     value={form.kilo}
-                    onChange={(e) => set('kilo', Number(e.target.value))}
+                    onChange={(e) => set('kilo', Number(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -144,13 +160,13 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
             <section>
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Shipping Information</h4>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Field label="Pick Up" name="pickUp" type="date" />
-                <Field label="Booking" name="booking" />
-                <Field label="Vessel" name="vessel" />
-                <Field label="Container" name="container" />
-                <Field label="ETS" name="ets" type="date" />
-                <Field label="ETA" name="eta" type="date" />
-                <Field label="ETA Knipping" name="etaKnipping" />
+                <Field label="Pick Up" name="pickUp" type="date" {...dateField('pickUp')} />
+                <Field label="Booking" name="booking" {...textField('booking')} />
+                <Field label="Vessel" name="vessel" {...textField('vessel')} />
+                <Field label="Container" name="container" {...textField('container')} />
+                <Field label="ETS" name="ets" type="date" {...dateField('ets')} />
+                <Field label="ETA" name="eta" type="date" {...dateField('eta')} />
+                <Field label="Invoice LLS" name="llsInvoice" {...textField('llsInvoice')} />
                 {isAdmin && (
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -161,7 +177,7 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
                       type="number"
                       min={0}
                       value={form.customClearance ?? 10}
-                      onChange={(e) => set('customClearance', Number(e.target.value))}
+                      onChange={(e) => set('customClearance', Math.max(0, Number(e.target.value)))}
                       className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/30"
                     />
                     <p className="text-[10px] text-gray-400 mt-1">DDP ETA KN-MX = ETA + this many days</p>
@@ -201,6 +217,18 @@ export default function ShipmentModal({ initial, onSave, onClose }: Props) {
                   />
                 </div>
               </div>
+            </section>
+
+            {/* Remarks */}
+            <section>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Remarks</h4>
+              <textarea
+                value={form.remarks}
+                onChange={(e) => set('remarks', e.target.value)}
+                rows={3}
+                placeholder="Add any notes or remarks about this shipment…"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+              />
             </section>
 
           </div>
