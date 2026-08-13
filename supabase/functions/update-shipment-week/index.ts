@@ -38,6 +38,16 @@ function cleanStr(val: unknown): string {
   return s;
 }
 
+function detectStatus(raw: string): { status: string; statusNote: string } {
+  const lower = raw.toLowerCase();
+  let status = "AT_DEPARTURE_PORT";
+  if (lower.includes("deliver")) status = "DELIVERED";
+  else if (lower.includes("arriv")) status = "ARRIVED";
+  else if (lower.includes("in transit") || lower.includes("transit")) status = "IN_TRANSIT";
+  else if (lower.includes("depart")) status = "DEPARTED";
+  return { status, statusNote: raw };
+}
+
 function field(row: Record<string, unknown>, ...keys: string[]): unknown {
   const normalized: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) {
@@ -114,6 +124,8 @@ Deno.serve(async (req: Request) => {
       const booking = cleanStr(field(raw, "booking"));
       const vessel = cleanStr(field(raw, "vessel"));
       const container = cleanStr(field(raw, "container"));
+      const rawStatus = cleanStr(field(raw, "status"));
+      const { status, statusNote } = rawStatus ? detectStatus(rawStatus) : { status: "", statusNote: "" };
       const etsRaw = field(raw, "ets");
       const etaRaw = field(raw, "eta");
       const ets = etsRaw ? parseDate(etsRaw) : null;
@@ -132,6 +144,8 @@ Deno.serve(async (req: Request) => {
       if (booking) updateData.booking = booking;
       if (vessel) updateData.vessel = vessel;
       if (container) updateData.container = container;
+      if (status) updateData.status = status;
+      if (statusNote) updateData.status_note = statusNote;
       if (ets) updateData.ets = ets;
       if (eta) updateData.eta = eta;
 
@@ -202,6 +216,15 @@ Deno.serve(async (req: Request) => {
             .update({ container, last_updated: now }, { count: "exact" })
             .in("cw", cwMatches)
             .eq("container", "");
+          if (e) itemError = e.message;
+          touched = Math.max(touched, count ?? 0);
+        }
+        if (!itemError && status) {
+          const { error: e, count } = await supabase
+            .from("shipments")
+            .update({ status, status_note: statusNote, last_updated: now }, { count: "exact" })
+            .in("cw", cwMatches)
+            .eq("status", "AT_DEPARTURE_PORT");
           if (e) itemError = e.message;
           touched = Math.max(touched, count ?? 0);
         }
